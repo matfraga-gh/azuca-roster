@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AZUCA · Roster</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C1A17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AZUCA Roster">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+:root{
+  --cream:#F5F0E8;--dark:#1C1A17;--olive:#5C6B3A;--olive-l:#7A8B50;
+  --rust:#C4622D;--sand:#D4C4A0;--sand-l:#EAE0CC;--white:#FDFBF7;
+  --gray:#8A8278;--red:#C0392B;--green:#27AE60;--yellow:#F1C40F;
+  --off-bg:#FFF9C4;--off-text:#9A7D0A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);min-height:100vh;font-size:14px}
+.view{display:none}.view.active{display:block}
+
+/* LOGIN */
+#vLogin{position:fixed;inset:0;background:var(--dark);z-index:999;display:none;align-items:center;justify-content:center}
+#vLogin.active{display:flex}
+.login-box{background:var(--cream);border-radius:20px;padding:40px 32px;width:90%;max-width:380px;text-align:center}
+.login-logo{font-family:'Playfair Display',serif;font-size:32px;letter-spacing:4px;color:var(--dark);margin-bottom:2px}
+.login-logo span{color:var(--rust)}
+.login-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gray);margin-bottom:6px}
+.login-mod{font-size:11px;font-weight:600;color:var(--olive);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
+.login-err{display:none;background:#FFEBEE;color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:14px}
+.lf{text-align:left;margin-bottom:14px}
+.lf label{display:block;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--gray);margin-bottom:5px}
+.lf input{width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--sand);background:var(--white);font-size:14px;font-family:'DM Sans',sans-serif;outline:none}
+.lf input:focus{border-color:var(--olive)}
+.btn-login{width:100%;padding:13px;background:var(--olive);border:none;border-radius:10px;color:var(--white);font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* DASHBOARD */
+#vDash{background:var(--dark);min-height:100vh;padding:40px 20px}
+.dash-hdr{text-align:center;margin-bottom:32px}
+.dash-logo{font-family:'Playfair Display',serif;font-size:28px;color:var(--cream);letter-spacing:4px}
+.dash-logo span{color:var(--rust)}
+.dash-sub{font-size:9px;color:var(--sand);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+.dash-mod{font-size:11px;color:var(--olive-l);letter-spacing:2px;text-transform:uppercase;margin-top:4px;font-weight:600}
+.dash-user{font-size:12px;color:var(--gray);margin-top:8px}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto 20px}
+.dash-card{background:var(--cream);border-radius:16px;padding:24px 16px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .2s}
+.dash-card:hover{transform:translateY(-2px);border-color:var(--sand)}
+.dash-card.full{grid-column:1/-1}
+.dash-icon{font-size:32px;margin-bottom:10px}
+.dash-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--dark);margin-bottom:4px}
+.dash-desc{font-size:11px;color:var(--gray)}
+.btn-logout{display:block;width:100%;max-width:520px;margin:0 auto;padding:10px;background:none;border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* APP HEADER */
+.app-hdr{background:var(--dark);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.app-brand{font-family:'Playfair Display',serif;font-size:18px;color:var(--cream);letter-spacing:3px}
+.app-brand span{color:var(--rust)}
+.app-sec{font-size:9px;color:var(--sand);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
+.app-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.abtn{border:none;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:600}
+.ao{background:var(--olive);color:var(--white)}
+.as{background:var(--sand);color:var(--dark)}
+.ab{background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.75)}
+.ar{background:var(--rust);color:var(--white)}
+
+/* CONTENT */
+.content{padding:20px;max-width:1200px;margin:0 auto}
+.ptitle{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:6px}
+.psub{color:var(--gray);font-size:13px;margin-bottom:20px}
+
+/* WEEK NAV */
+.week-nav{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.week-label{font-family:'Playfair Display',serif;font-size:18px;flex:1}
+.week-btn{border:1px solid var(--sand);background:var(--white);border-radius:8px;padding:7px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--dark)}
+.week-btn:hover{border-color:var(--olive);color:var(--olive)}
+.local-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.local-tab{padding:7px 16px;border-radius:20px;border:1.5px solid var(--sand);background:var(--white);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gray);transition:all .2s}
+.local-tab.active{background:var(--dark);border-color:var(--dark);color:var(--white)}
+
+/* ROSTER GRID */
+.roster-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--sand-l)}
+.roster-table{width:100%;border-collapse:collapse;min-width:700px}
+.roster-table th{background:var(--dark);color:var(--sand);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:10px 12px;text-align:center}
+.roster-table th.emp-col{text-align:left;min-width:160px}
+.roster-table td{padding:6px 8px;border-bottom:1px solid var(--sand-l);border-right:1px solid var(--sand-l);background:var(--white);vertical-align:middle}
+.roster-table td.emp-cell{background:var(--cream);font-size:12px;font-weight:600;padding:8px 12px;min-width:160px}
+.roster-table td.emp-cell .sector{font-size:10px;color:var(--gray);font-weight:400}
+.roster-table tr:last-child td{border-bottom:none}
+.roster-table td:last-child{border-right:none}
+
+/* TURNO CELL */
+.turno-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:80px;cursor:pointer;border-radius:8px;padding:6px 4px;transition:background .15s}
+.turno-cell:hover{background:var(--cream)}
+.turno-hora{font-size:13px;font-weight:600;color:var(--dark)}
+.turno-off{font-size:12px;font-weight:700;color:var(--off-text);background:var(--off-bg);padding:3px 10px;border-radius:20px;letter-spacing:1px}
+.turno-vacio{font-size:11px;color:var(--sand);font-style:italic}
+.turno-comment{font-size:9px;color:var(--olive);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.turno-cell.readonly{cursor:default}
+.turno-cell.readonly:hover{background:transparent}
+
+/* COMMENT GENERAL */
+.comment-general{background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px}
+.comment-general textarea{flex:1;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--dark);resize:none;outline:none;min-height:36px}
+.comment-general .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gray);white-space:nowrap;margin-top:2px}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(28,26,23,.6);z-index:200;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.overlay.open{display:flex}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:480px;padding:28px;position:relative}
+.modal h2{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:16px}
+.mc{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--gray)}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1px solid var(--sand);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--cream);color:var(--dark);outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--olive);background:var(--white)}
+.fg textarea{resize:vertical;min-height:70px}
+.ma{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--sand-l)}
+
+/* BUTTONS */
+.btn{border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.bp{background:var(--olive);color:var(--white)}
+.bs{background:var(--white);color:var(--dark);border:1px solid var(--sand)}
+.br{background:var(--rust);color:var(--white)}
+.bd{background:none;color:var(--red);border:none;cursor:pointer;font-size:13px;padding:4px 8px}
+
+/* INCIDENCIAS */
+.inc-list{display:flex;flex-direction:column;gap:8px}
+.inc-card{background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.inc-info .nombre{font-weight:600;font-size:13px;margin-bottom:2px}
+.inc-info .meta{font-size:11px;color:var(--gray)}
+.inc-info .desc{font-size:12px;color:var(--dark);margin-top:4px}
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.b-pendiente{background:#FFF8E1;color:#E67E22}
+.b-aprobado{background:#E8F5E9;color:var(--green)}
+.b-rechazado{background:#FFEBEE;color:var(--red)}
+.inc-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* EMPLEADOS */
+.tw{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{background:var(--dark);color:var(--sand);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:11px 14px;text-align:left}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--sand-l);font-size:13px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--cream)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.toolbar input,.toolbar select{padding:8px 12px;border:1px solid var(--sand);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--white);color:var(--dark);outline:none}
+.toolbar input{width:200px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:var(--cream);padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+.empty{text-align:center;padding:40px;color:var(--gray)}
+.empty .icon{font-size:44px;margin-bottom:10px}
+
+/* MI SEMANA (empleado) */
+.mi-semana-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px}
+.dia-card{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px 10px;text-align:center}
+.dia-card.off{background:var(--off-bg);border-color:#F0E060}
+.dia-card .dia-nombre{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px}
+.dia-card .dia-fecha{font-size:11px;color:var(--gray);margin-bottom:8px}
+.dia-card .dia-hora{font-size:20px;font-weight:700;color:var(--dark)}
+.dia-card.off .dia-hora{font-size:14px;font-weight:700;color:var(--off-text);letter-spacing:2px}
+.dia-card .dia-comment{font-size:10px;color:var(--olive);margin-top:4px}
+
+/* TURNO EDIT TOGGLE */
+.off-toggle{display:flex;gap:8px;margin-bottom:12px}
+.off-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--sand);background:var(--white);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--gray);transition:all .2s;text-align:center}
+.off-btn.active-work{background:var(--olive);border-color:var(--olive);color:var(--white)}
+.off-btn.active-off{background:var(--off-bg);border-color:#F0E060;color:var(--off-text)}
+
+@media(max-width:600px){
+  .dash-grid{grid-template-columns:1fr}
+  .mi-semana-grid{grid-template-columns:repeat(2,1fr)}
+  .frow{grid-template-columns:1fr}
+  .content{padding:14px}
+  .app-btns{gap:4px}
+  .abtn{padding:6px 10px;font-size:11px}
+  .overlay{padding:0;align-items:flex-end}
+  .modal{border-radius:20px 20px 0 0;max-width:100%!important;max-height:90vh;overflow-y:auto;padding:20px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="vLogin" class="view active">
+  <div class="login-box">
+    <div class="login-logo">a<span>z</span>uca</div>
+    <div class="login-sub">Grupo Gastronómico</div>
+    <div class="login-mod">📅 Roster</div>
+    <div class="login-err" id="loginErr">Usuario o contraseña incorrectos</div>
+    <div class="lf"><label>Usuario</label><input type="text" id="loginUser" placeholder="tu usuario"></div>
+    <div class="lf"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="vDash" class="view">
+  <div class="dash-hdr">
+    <div class="dash-logo">a<span>z</span>uca</div>
+    <div class="dash-sub">Grupo Gastronómico</div>
+    <div class="dash-mod">📅 Roster de Turnos</div>
+    <div class="dash-user" id="dashUser"></div>
+  </div>
+  <div class="dash-grid" id="dashGrid"></div>
+  <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
+</div>
+
+<!-- ROSTER (editor/rrhh) -->
+<div id="vRoster" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Roster</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" id="btnPublicar" onclick="publicarRoster()" style="display:none">✓ Publicar</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="week-nav">
+      <button class="week-btn" onclick="cambiarSemana(-1)">← Anterior</button>
+      <div class="week-label" id="weekLabel"></div>
+      <button class="week-btn" onclick="cambiarSemana(1)">Siguiente →</button>
+    </div>
+    <div class="local-tabs" id="localTabs"></div>
+    <div class="comment-general" id="commentGeneral" style="display:none">
+      <span class="label">💬 Nota</span>
+      <textarea id="commentGeneralTxt" placeholder="Comentario general de la semana para este local..." rows="2" onblur="guardarCommentGeneral()"></textarea>
+    </div>
+    <div class="roster-wrap">
+      <table class="roster-table" id="rosterTable">
+        <thead id="rosterHead"></thead>
+        <tbody id="rosterBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MI SEMANA (empleado) -->
+<div id="vMiSemana" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Mi Semana</div></div>
+    <div class="app-btns">
+      <button class="abtn ar" onclick="openIncidenciaModal()">⚠ Incidencia</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="week-nav">
+      <button class="week-btn" onclick="cambiarSemanaEmp(-1)">← Anterior</button>
+      <div class="week-label" id="weekLabelEmp"></div>
+      <button class="week-btn" onclick="cambiarSemanaEmp(1)">Siguiente →</button>
+    </div>
+    <div class="mi-semana-grid" id="miSemanaGrid"></div>
+    <div id="miComentGeneral" style="display:none;background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--gray)"></div>
+  </div>
+</div>
+
+<!-- INCIDENCIAS (rrhh) -->
+<div id="vIncidencias" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Incidencias</div></div>
+    <div class="app-btns"><button class="abtn ab" onclick="showView('vDash')">← Dashboard</button></div>
+  </div>
+  <div class="content">
+    <div class="ptitle">Incidencias</div>
+    <div class="psub">Revisá y gestioná las incidencias reportadas por el equipo</div>
+    <div class="toolbar">
+      <select id="incFiltLocal" onchange="loadIncidencias()">
+        <option value="">Todos los locales</option>
+        <option value="2-AZAFRAN">Azafrán</option>
+        <option value="5-TRAPICHE">Trapiche</option>
+        <option value="3-NIETO">Nieto</option>
+        <option value="4-VIÑA COBOS">Viña Cobos</option>
+        <option value="1-AZUCA">Azuca Admin</option>
+      </select>
+      <select id="incFiltEstado" onchange="loadIncidencias()">
+        <option value="">Todos los estados</option>
+        <option value="pendiente">⏳ Pendientes</option>
+        <option value="aprobado">✓ Aprobadas</option>
+        <option value="rechazado">✗ Rechazadas</option>
+      </select>
+    </div>
+    <div class="inc-list" id="incList"></div>
+  </div>
+</div>
+
+<!-- EMPLEADOS (rrhh) -->
+<div id="vEmpleados" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Empleados</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" onclick="openEmpModal()">+ Nuevo</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="ptitle">Empleados</div>
+    <div class="psub">Listado del equipo AZUCA por local y sector</div>
+    <div class="toolbar">
+      <input type="text" id="empSearch" placeholder="Buscar..." oninput="renderEmpleados()">
+      <select id="empFiltLocal" onchange="renderEmpleados()">
+        <option value="">Todos los locales</option>
+        <option value="2-AZAFRAN">Azafrán</option>
+        <option value="5-TRAPICHE">Trapiche</option>
+        <option value="3-NIETO">Nieto</option>
+        <option value="4-VIÑA COBOS">Viña Cobos</option>
+        <option value="1-AZUCA">Azuca Admin</option>
+      </select>
+    </div>
+    <div class="tw"><table class="tbl">
+      <thead><tr><th>Nombre</th><th>Local</th><th>Sector</th><th>Categoría</th><th></th></tr></thead>
+      <tbody id="empTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ══ MODALES ══ -->
+
+<!-- Modal Turno -->
+<div class="overlay" id="ovTurno">
+  <div class="modal">
+    <button class="mc" onclick="closeOv('ovTurno')">✕</button>
+    <h2 id="turnoTitle">Editar turno</h2>
+    <input type="hidden" id="turnoEmpId">
+    <input type="hidden" id="turnoDia">
+    <div class="off-toggle">
+      <div class="off-btn active-work" id="btnWork" onclick="setTurnoMode('work')">🕐 Turno</div>
+      <div class="off-btn" id="btnOff" onclick="setTurnoMode('off')">☀️ OFF</div>
+    </div>
+    <div id="turnoHoraWrap">
+      <div class="fg" style="margin-bottom:12px">
+        <label>Hora de entrada</label>
+        <input type="time" id="turnoHora">
+      </div>
+    </div>
+    <div class="fg full" style="margin-bottom:4px">
+      <label>Comentario del día (opcional)</label>
+      <textarea id="turnoComment" placeholder="Ej: cubre a Juan, llega del médico..."></textarea>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovTurno')">Cancelar</button>
+      <button class="btn bd" onclick="borrarTurno()">Borrar</button>
+      <button class="btn bp" onclick="guardarTurno()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Incidencia -->
+<div class="overlay" id="ovIncidencia">
+  <div class="modal">
+    <button class="mc" onclick="closeOv('ovIncidencia')">✕</button>
+    <h2>Reportar incidencia</h2>
+    <div class="frow">
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="incTipo">
+          <option value="tardanza">⏰ Llegada tarde</option>
+          <option value="ausencia">❌ Ausencia</option>
+          <option value="cambio_turno">🔄 Cambio de turno</option>
+          <option value="otro">📝 Otro</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Fecha</label>
+        <input type="date" id="incFecha">
+      </div>
+    </div>
+    <div class="fg full" style="margin-bottom:4px">
+      <label>Descripción</label>
+      <textarea id="incDesc" placeholder="Explicá brevemente qué pasó..."></textarea>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovIncidencia')">Cancelar</button>
+      <button class="btn bp" onclick="guardarIncidencia()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Empleado -->
+<div class="overlay" id="ovEmp">
+  <div class="modal">
+    <button class="mc" onclick="closeOv('ovEmp')">✕</button>
+    <h2 id="empModalTitle">Nuevo Empleado</h2>
+    <div class="frow">
+      <div class="fg full"><label>Nombre completo</label><input type="text" id="eNombre"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label>Local</label>
+        <select id="eLocal">
+          <option value="1-AZUCA">Azuca Admin</option>
+          <option value="2-AZAFRAN">Azafrán</option>
+          <option value="3-NIETO">Nieto</option>
+          <option value="4-VIÑA COBOS">Viña Cobos</option>
+          <option value="5-TRAPICHE">Trapiche</option>
+        </select>
+      </div>
+      <div class="fg"><label>Sector</label>
+        <select id="eSector">
+          <option value="COCINA">Cocina</option>
+          <option value="SALA">Sala</option>
+          <option value="CAVA">Cava</option>
+          <option value="ORDENANZA">Ordenanza</option>
+          <option value="SEGURIDAD">Seguridad</option>
+          <option value="ADMINISTRACION">Administración</option>
+          <option value="GERENCIA">Gerencia</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg full" style="margin-bottom:4px"><label>Categoría</label><input type="text" id="eCategoria" placeholder="Ej: Cocinero Senior, Camarero..."></div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovEmp')">Cancelar</button>
+      <button class="btn bp" onclick="guardarEmpleado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const SU='https://vbnucvzjlcghrmqxjldp.supabase.co';
+const SK='sb_publishable_VGfoUAU6e0zlXzkY2y8iBw_lYeOKU7K';
+
+const LOCAL_LABELS={'1-AZUCA':'Azuca Admin','2-AZAFRAN':'Azafrán','3-NIETO':'Nieto Senetiner','4-VIÑA COBOS':'Viña Cobos','5-TRAPICHE':'Espacio Trapiche'};
+const DIAS=['Lun.','Mar.','Mié.','Jue.','Vie.','Sáb.','Dom.'];
+
+let CU=null, EMPLEADOS=[], SEMANA_ACTUAL=null, LOCAL_ACTUAL=null;
+let TURNOS_MAP={}, SEMANA_ID=null, SEMANA_OBJ=null;
+let SEMANA_EMP=null, eEmpId=null;
+
+// ── API ────────────────────────────────────────────────────
+async function api(p,m='GET',b=null){
+  const o={method:m,headers:{'Content-Type':'application/json','apikey':SK,'Authorization':'Bearer '+SK,'Prefer':m==='POST'?'return=representation':''}};
+  if(b) o.body=JSON.stringify(b);
+  try{const r=await fetch(SU+'/rest/v1/'+p,o);if(r.status===204)return true;const d=await r.json();if(!r.ok){console.error(d);return null;}return d;}catch(e){console.error(e);return null;}
+}
+async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+function toast(m,d=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
+function fmt(d){if(!d)return '';const dt=new Date(d+'T12:00:00');return `${dt.getDate()}-${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]}`;}
+
+// ── FECHA UTILS ───────────────────────────────────────────
+function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=day===0?-6:1-day;dt.setDate(dt.getDate()+diff);return dt.toISOString().split('T')[0];}
+function addDays(dateStr,n){const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function diasDeSemana(lunes){return Array.from({length:7},(_,i)=>addDays(lunes,i));}
+function formatSemana(lunes){const dias=diasDeSemana(lunes);return `Semana del ${fmt(dias[0])} al ${fmt(dias[6])}`;}
+
+// ── LOGIN ─────────────────────────────────────────────────
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim().toLowerCase();
+  const p=document.getElementById('loginPass').value;
+  if(!u||!p)return;
+  const h=await sha256(p);
+  const r=await api(`usuarios?usuario=eq.${encodeURIComponent(u)}&password_hash=eq.${h}&activo=eq.true&select=*`);
+  if(!r||!r.length){document.getElementById('loginErr').style.display='block';return;}
+  CU=r[0];sessionStorage.setItem('az_roster_u',JSON.stringify(CU));
+  document.getElementById('loginErr').style.display='none';
+  afterLogin();
+}
+window.doLogin=doLogin;
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+function doLogout(){CU=null;sessionStorage.removeItem('az_roster_u');showView('vLogin');}
+window.doLogout=doLogout;
+function afterLogin(){
+  document.getElementById('dashUser').textContent=`${CU.nombre} · ${CU.rol}`;
+  buildDash();showView('vDash');
+}
+function checkSession(){const s=sessionStorage.getItem('az_roster_u');if(s){CU=JSON.parse(s);afterLogin();}else showView('vLogin');}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+function buildDash(){
+  const esRRHH=CU.rol==='admin';
+  const esEditor=CU.rol==='admin'||CU.rol==='compras'; // compras = editor en roster
+  const cards=[];
+  cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
+  cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
+  if(esRRHH||esEditor){
+    cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
+    cards.push({i:'👥',t:'Empleados',d:'Gestión del personal',a:"showView('vEmpleados')"});
+  }
+  document.getElementById('dashGrid').innerHTML=cards.map(c=>`
+    <div class="dash-card" onclick="${c.a}">
+      <div class="dash-icon">${c.i}</div>
+      <div class="dash-title">${c.t}</div>
+      <div class="dash-desc">${c.d}</div>
+    </div>`).join('');
+}
+
+// ── VIEWS ─────────────────────────────────────────────────
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
+  if(id==='vRoster'){initRoster();}
+  if(id==='vMiSemanaView'){initMiSemana();}
+  if(id==='vIncidencias'){loadIncidencias();}
+  if(id==='vEmpleados'){loadEmpleados();}
+}
+window.showView=showView;
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');}
+window.closeOv=closeOv;
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+// ── ROSTER ────────────────────────────────────────────────
+async function initRoster(){
+  if(!SEMANA_ACTUAL) SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
+  await loadEmpleadosData();
+  buildLocalTabs();
+  if(!LOCAL_ACTUAL) LOCAL_ACTUAL=Object.keys(LOCAL_LABELS)[1]; // default Azafrán
+  await loadRoster();
+}
+
+function buildLocalTabs(){
+  const locales=Object.keys(LOCAL_LABELS);
+  document.getElementById('localTabs').innerHTML=locales.map(l=>`
+    <div class="local-tab ${l===LOCAL_ACTUAL?'active':''}" onclick="cambiarLocal('${l}')">${LOCAL_LABELS[l]}</div>`
+  ).join('');
+}
+window.cambiarLocal=async function(l){LOCAL_ACTUAL=l;buildLocalTabs();await loadRoster();};
+
+function cambiarSemana(n){SEMANA_ACTUAL=addDays(SEMANA_ACTUAL,n*7);loadRoster();}
+window.cambiarSemana=cambiarSemana;
+
+async function loadRoster(){
+  document.getElementById('weekLabel').textContent=formatSemana(SEMANA_ACTUAL);
+  const esEditor=CU.rol==='admin'||CU.rol==='compras';
+  document.getElementById('btnPublicar').style.display=esEditor?'':'none';
+
+  // Load or create semana
+  const semanas=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
+  if(semanas&&semanas.length){
+    SEMANA_OBJ=semanas[0];SEMANA_ID=semanas[0].id;
+  } else {
+    SEMANA_OBJ=null;SEMANA_ID=null;
+  }
+
+  // Comment general
+  const cgEl=document.getElementById('commentGeneral');
+  const cgTxt=document.getElementById('commentGeneralTxt');
+  cgEl.style.display=esEditor?'flex':'none';
+  if(esEditor) cgTxt.value=SEMANA_OBJ?.comentario_general||'';
+
+  // Load turnos
+  TURNOS_MAP={};
+  if(SEMANA_ID){
+    const turnos=await api(`roster_turnos?semana_id=eq.${SEMANA_ID}&select=*`);
+    (turnos||[]).forEach(t=>{TURNOS_MAP[`${t.empleado_id}_${t.dia}`]=t;});
+  }
+
+  renderRosterTable(esEditor);
+}
+
+function renderRosterTable(esEditor){
+  const dias=diasDeSemana(SEMANA_ACTUAL);
+  const emps=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
+
+  // Head
+  document.getElementById('rosterHead').innerHTML=`<tr>
+    <th class="emp-col">Empleado</th>
+    ${dias.map((d,i)=>`<th>${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}</small></th>`).join('')}
+  </tr>`;
+
+  // Body
+  if(!emps.length){
+    document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin empleados para este local</td></tr>`;
+    return;
+  }
+
+  document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
+    <tr>
+      <td class="emp-cell">
+        ${emp.nombre}
+        <div class="sector">${emp.sector||''} · ${emp.categoria||''}</div>
+      </td>
+      ${dias.map(dia=>{
+        const key=`${emp.id}_${dia}`;
+        const t=TURNOS_MAP[key];
+        if(t){
+          if(t.es_off){
+            return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}">${t.es_off?`<span class="turno-off">OFF</span>`:''}${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+          }
+          return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}">${t.hora_entrada?`<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>`:'<span class="turno-vacio">—</span>'}${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        }
+        return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}" ><span class="turno-vacio">${esEditor?'+ agregar':'—'}</span></div></td>`;
+      }).join('')}
+    </tr>`).join('');
+}
+
+// Guardar comentario general
+window.guardarCommentGeneral=async function(){
+  const txt=document.getElementById('commentGeneralTxt').value.trim();
+  if(!SEMANA_ID){
+    // Crear semana si no existe
+    const res=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id});
+    if(res&&res.length){SEMANA_ID=res[0].id;SEMANA_OBJ=res[0];}
+  } else {
+    await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
+  }
+};
+
+// Publicar roster
+window.publicarRoster=function(){toast('Roster publicado — el equipo ya puede ver sus turnos ✓');};
+
+// ── EDITAR TURNO ──────────────────────────────────────────
+window.editTurno=function(empId,dia){
+  const key=`${empId}_${dia}`;
+  const t=TURNOS_MAP[key];
+  const emp=EMPLEADOS.find(e=>e.id===empId);
+  document.getElementById('turnoTitle').textContent=`${emp?.nombre||''} — ${fmt(dia)}`;
+  document.getElementById('turnoEmpId').value=empId;
+  document.getElementById('turnoDia').value=dia;
+  document.getElementById('turnoHora').value=t?.hora_entrada?.slice(0,5)||'';
+  document.getElementById('turnoComment').value=t?.comentario||'';
+  setTurnoMode(t?.es_off?'off':'work');
+  openOv('ovTurno');
+};
+
+window.setTurnoMode=function(mode){
+  document.getElementById('btnWork').className='off-btn'+(mode==='work'?' active-work':'');
+  document.getElementById('btnOff').className='off-btn'+(mode==='off'?' active-off':'');
+  document.getElementById('turnoHoraWrap').style.display=mode==='work'?'block':'none';
+};
+
+window.guardarTurno=async function(){
+  const empId=parseInt(document.getElementById('turnoEmpId').value);
+  const dia=document.getElementById('turnoDia').value;
+  const esOff=document.getElementById('btnOff').classList.contains('active-off');
+  const hora=document.getElementById('turnoHora').value;
+  const comment=document.getElementById('turnoComment').value.trim();
+
+  // Crear semana si no existe
+  if(!SEMANA_ID){
+    const res=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+    if(res&&res.length){SEMANA_ID=res[0].id;SEMANA_OBJ=res[0];}
+    else{toast('Error al crear semana');return;}
+  }
+
+  const key=`${empId}_${dia}`;
+  const existing=TURNOS_MAP[key];
+  const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,hora_entrada:esOff?null:(hora||null),comentario:comment||null};
+
+  if(existing){
+    await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);
+    TURNOS_MAP[key]={...existing,...data};
+  } else {
+    const res=await api('roster_turnos','POST',data);
+    if(res&&res.length) TURNOS_MAP[key]=res[0];
+  }
+  closeOv('ovTurno');
+  renderRosterTable(true);
+  toast('Turno guardado ✓');
+};
+
+window.borrarTurno=async function(){
+  const empId=parseInt(document.getElementById('turnoEmpId').value);
+  const dia=document.getElementById('turnoDia').value;
+  const key=`${empId}_${dia}`;
+  const existing=TURNOS_MAP[key];
+  if(existing){
+    await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');
+    delete TURNOS_MAP[key];
+  }
+  closeOv('ovTurno');
+  renderRosterTable(true);
+  toast('Turno eliminado');
+};
+
+// ── MI SEMANA ─────────────────────────────────────────────
+async function initMiSemana(){
+  if(!SEMANA_EMP) SEMANA_EMP=getLunes(new Date().toISOString().split('T')[0]);
+  // Buscar empleado por nombre del usuario
+  const emps=await api(`empleados?nombre=ilike.*${encodeURIComponent(CU.nombre.split(' ')[0])}*&select=*`);
+  const emp=emps&&emps.length?emps[0]:null;
+  await renderMiSemana(emp);
+}
+
+async function renderMiSemana(emp){
+  document.getElementById('weekLabelEmp').textContent=formatSemana(SEMANA_EMP);
+  const dias=diasDeSemana(SEMANA_EMP);
+
+  let turnos={};
+  let comentGeneral='';
+
+  if(emp){
+    const semanas=await api(`roster_semanas?local=eq.${encodeURIComponent(emp.local)}&fecha_lunes=eq.${SEMANA_EMP}&select=*`);
+    if(semanas&&semanas.length){
+      const sid=semanas[0].id;
+      comentGeneral=semanas[0].comentario_general||'';
+      const tt=await api(`roster_turnos?semana_id=eq.${sid}&empleado_id=eq.${emp.id}&select=*`);
+      (tt||[]).forEach(t=>{turnos[t.dia]=t;});
+    }
+  }
+
+  document.getElementById('miSemanaGrid').innerHTML=dias.map((dia,i)=>{
+    const t=turnos[dia];
+    const esOff=t?.es_off;
+    return `<div class="dia-card ${esOff?'off':''}">
+      <div class="dia-nombre">${DIAS[i]}</div>
+      <div class="dia-fecha">${fmt(dia)}</div>
+      <div class="dia-hora">${esOff?'OFF':t?.hora_entrada?t.hora_entrada.slice(0,5):'—'}</div>
+      ${t?.comentario?`<div class="dia-comment">💬 ${t.comentario}</div>`:''}
+    </div>`;
+  }).join('');
+
+  const cg=document.getElementById('miComentGeneral');
+  if(comentGeneral){cg.style.display='block';cg.innerHTML=`💬 <em>${comentGeneral}</em>`;}
+  else cg.style.display='none';
+}
+
+function cambiarSemanaEmp(n){SEMANA_EMP=addDays(SEMANA_EMP,n*7);initMiSemana();}
+window.cambiarSemanaEmp=cambiarSemanaEmp;
+
+// ── INCIDENCIAS ───────────────────────────────────────────
+window.openIncidenciaModal=function(){
+  document.getElementById('incFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('incDesc').value='';
+  openOv('ovIncidencia');
+};
+
+window.guardarIncidencia=async function(){
+  const tipo=document.getElementById('incTipo').value;
+  const fecha=document.getElementById('incFecha').value;
+  const desc=document.getElementById('incDesc').value.trim();
+  if(!desc){toast('Describí brevemente la incidencia');return;}
+
+  // Buscar empleado_id del usuario actual
+  const emps=await api(`empleados?nombre=ilike.*${encodeURIComponent(CU.nombre.split(' ')[0])}*&select=id&limit=1`);
+  const empId=emps&&emps.length?emps[0].id:null;
+
+  await api('incidencias','POST',{empleado_id:empId,fecha,tipo,descripcion:desc,estado:'pendiente'});
+  closeOv('ovIncidencia');
+  toast('Incidencia enviada ✓');
+};
+
+window.loadIncidencias=async function(){
+  const local=document.getElementById('incFiltLocal').value;
+  const estado=document.getElementById('incFiltEstado').value;
+
+  let q='incidencias?select=*,empleado:empleado_id(nombre,local,sector)&order=creado_en.desc&limit=100';
+  if(estado) q+=`&estado=eq.${estado}`;
+
+  const data=await api(q)||[];
+  const filtered=local?data.filter(i=>i.empleado?.local===local):data;
+
+  const list=document.getElementById('incList');
+  if(!filtered.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><p>Sin incidencias</p></div>`;return;}
+
+  const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
+  list.innerHTML=filtered.map(i=>`
+    <div class="inc-card">
+      <div class="inc-info">
+        <div class="nombre">${i.empleado?.nombre||'—'}</div>
+        <div class="meta">${LOCAL_LABELS[i.empleado?.local]||i.empleado?.local||'—'} · ${i.empleado?.sector||''} · ${fmt(i.fecha)}</div>
+        <div style="margin-top:4px"><span class="badge b-${i.estado}">${TIPOS[i.tipo]||i.tipo}</span></div>
+        ${i.descripcion?`<div class="desc">${i.descripcion}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <span class="badge b-${i.estado}">${i.estado==='pendiente'?'⏳ Pendiente':i.estado==='aprobado'?'✓ Aprobada':'✗ Rechazada'}</span>
+        ${i.estado==='pendiente'&&(CU.rol==='admin')?`
+          <div class="inc-actions">
+            <button class="btn bp" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'aprobado')">✓ Aprobar</button>
+            <button class="btn bs" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'rechazado')">✗ Rechazar</button>
+          </div>` : ''}
+      </div>
+    </div>`).join('');
+};
+
+window.resolverInc=async function(id,estado){
+  await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
+  toast(estado==='aprobado'?'Incidencia aprobada ✓':'Incidencia rechazada');
+  loadIncidencias();
+};
+
+// ── EMPLEADOS ─────────────────────────────────────────────
+async function loadEmpleados(){
+  const data=await api('empleados?select=*&activo=neq.false&order=local.asc,nombre.asc')||[];
+  EMPLEADOS=data;renderEmpleados();
+}
+
+async function loadEmpleadosData(){
+  if(!EMPLEADOS.length){
+    const data=await api('empleados?select=*&activo=neq.false&order=nombre.asc')||[];
+    EMPLEADOS=data;
+  }
+}
+
+function renderEmpleados(){
+  const s=(document.getElementById('empSearch')?.value||'').toLowerCase();
+  const l=document.getElementById('empFiltLocal')?.value||'';
+  const f=EMPLEADOS.filter(e=>(!s||e.nombre.toLowerCase().includes(s))&&(!l||e.local===l));
+  const tb=document.getElementById('empTbody');
+  if(!f.length){tb.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin empleados</td></tr>`;return;}
+  tb.innerHTML=f.map(e=>`<tr>
+    <td><strong>${e.nombre}</strong></td>
+    <td>${LOCAL_LABELS[e.local]||e.local||'—'}</td>
+    <td>${e.sector||'—'}</td>
+    <td>${e.categoria||'—'}</td>
+    <td><button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button></td>
+  </tr>`).join('');
+}
+window.renderEmpleados=renderEmpleados;
+
+function openEmpModal(){eEmpId=null;document.getElementById('empModalTitle').textContent='Nuevo Empleado';['eNombre','eCategoria'].forEach(id=>document.getElementById(id).value='');openOv('ovEmp');}
+window.openEmpModal=openEmpModal;
+
+window.guardarEmpleado=async function(){
+  const nombre=document.getElementById('eNombre').value.trim();if(!nombre){toast('Ingresá un nombre');return;}
+  const data={nombre,local:document.getElementById('eLocal').value,sector:document.getElementById('eSector').value,categoria:document.getElementById('eCategoria').value.trim(),activo:true};
+  await api('empleados','POST',data);
+  closeOv('ovEmp');toast('Empleado creado ✓');await loadEmpleados();
+};
+
+window.toggleActivo=async function(id,activo){
+  if(!confirm(activo?'¿Dar de baja este empleado?':'¿Reactivar este empleado?'))return;
+  await api(`empleados?id=eq.${id}`,'PATCH',{activo:!activo});
+  toast(activo?'Empleado dado de baja':'Empleado reactivado');
+  await loadEmpleados();
+};
+
+checkSession();
+})();
+</script>
+</body>
+</html>
