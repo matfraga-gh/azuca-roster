@@ -147,6 +147,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .b-pendiente{background:#FFF8E1;color:#E67E22}
 .b-aprobado{background:#E8F5E9;color:var(--green)}
 .b-rechazado{background:#FFEBEE;color:var(--red)}
+.b-procesada{background:#EEEDEA;color:#6B6B6B}
 .b-master{background:#EDE7F6;color:#5E35B1}
 .b-editor{background:#E3F2FD;color:var(--blue)}
 .b-usuario{background:#F5F5F5;color:var(--gray)}
@@ -757,8 +758,42 @@ function showView(id){
   if(id==='vIncidencias')loadIncidencias();
   if(id==='vEmpleados')loadEmpleados();
   if(id==='vUsuarios')loadUsuarios();
+  // Auto-refresh de incidencias solo en el roster
+  if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
+  if(id==='vRoster'){
+    window._incRefreshTimer=setInterval(refrescarIncidencias,30000);
+  }
 }
 window.showView=showView;
+
+// Refresca solo el INC_MAP y vuelve a renderizar la grilla, sin recargar turnos
+async function refrescarIncidencias(){
+  // Solo correr si el roster está activo
+  const vRoster=document.getElementById('vRoster');
+  if(!vRoster||!vRoster.classList.contains('active'))return;
+  if(!SEMANA_ACTUAL)return;
+  const dias7=diasDeSemana(SEMANA_ACTUAL);
+  const desde=dias7[0],hasta=dias7[6];
+  const incs=await api(`incidencias?fecha=gte.${desde}&fecha=lte.${hasta}&select=*&order=creado_en.desc`)||[];
+  const nuevoMap={};
+  incs.forEach(inc=>{
+    const k=`${inc.empleado_id}_${inc.fecha}`;
+    if(!nuevoMap[k])nuevoMap[k]=inc;
+  });
+  // Si cambió algo, re-renderizar
+  const cambio=JSON.stringify(Object.keys(INC_MAP).sort().map(k=>[k,INC_MAP[k].id,INC_MAP[k].estado]))
+              !==JSON.stringify(Object.keys(nuevoMap).sort().map(k=>[k,nuevoMap[k].id,nuevoMap[k].estado]));
+  INC_MAP=nuevoMap;
+  if(cambio)renderRosterTable(puedeEditarLocal(LOCAL_ACTUAL));
+}
+
+// Refrescar al volver a la pestaña
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    const vRoster=document.getElementById('vRoster');
+    if(vRoster&&vRoster.classList.contains('active'))refrescarIncidencias();
+  }
+});
 function openOv(id){document.getElementById(id).classList.add('open');}
 function closeOv(id){document.getElementById(id).classList.remove('open');}
 window.closeOv=closeOv;
@@ -981,11 +1016,11 @@ window.loadIncidencias=async function(){
         ${i.descripcion?`<div class="desc" style="margin-top:4px;font-size:12px">${i.descripcion}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
-        <span class="badge b-${i.estado}">${i.estado==='pendiente'?'⏳ Pendiente':i.estado==='aprobado'?'✓ Aprobada':'✗ Rechazada'}</span>
+        <span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${i.estado==='pendiente'?'⏳ Pendiente':'✓ Procesada'}</span>
         ${i.estado==='pendiente'&&esMaster()?`
           <div style="display:flex;gap:6px">
-            <button class="btn bp" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'aprobado')">✓</button>
-            <button class="btn bs" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'rechazado')">✗</button>
+            <button class="btn bp" style="padding:5px 10px;font-size:11px" title="Aprobar" onclick="resolverInc(${i.id},'aprobado')">✓</button>
+            <button class="btn bs" style="padding:5px 10px;font-size:11px" title="Rechazar" onclick="resolverInc(${i.id},'rechazado')">✗</button>
           </div>`:''}
       </div>
     </div>`).join('');
@@ -1007,7 +1042,7 @@ window.verIncidencia=async function(id){
   }
   const emp=EMPLEADOS.find(e=>e.id===inc.empleado_id);
   const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
-  const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Aprobada',rechazado:'✗ Rechazada'};
+  const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Procesada',rechazado:'✓ Procesada'};
   document.getElementById('incDetTitle').textContent=`Incidencia — ${emp?.apellido||emp?.nombre||''}`;
   document.getElementById('incDetBody').innerHTML=`
     <div style="background:var(--cream);border-radius:10px;padding:14px;font-size:13px;line-height:1.6">
