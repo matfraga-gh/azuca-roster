@@ -645,6 +645,13 @@ async function api(p,m='GET',b=null){
   try{const r=await fetch(SU+'/rest/v1/'+p,o);if(r.status===204)return true;const d=await r.json();if(!r.ok){console.error(d);return null;}return d;}
   catch(e){console.error(e);return null;}
 }
+async function apiUpsert(table,body,onConflict=[]){
+  const conflict=onConflict.join(',');
+  const o={method:'POST',headers:{'Content-Type':'application/json','apikey':SK,'Authorization':'Bearer '+SK,'Prefer':`resolution=merge-duplicates,return=representation`,'on-conflict':conflict}};
+  o.body=JSON.stringify(body);
+  try{const r=await fetch(SU+'/rest/v1/'+table,o);if(r.status===204)return true;const d=await r.json();if(!r.ok){console.error(d);return null;}return d;}
+  catch(e){console.error(e);return null;}
+}
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function toast(m,d=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 function fmt(d){if(!d)return '';const dt=new Date(d+'T12:00:00');return `${dt.getDate()}-${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]}`;}
@@ -787,7 +794,7 @@ function renderRosterTable(puedeEditar){
 }
 window.guardarCommentGeneral=async function(){
   const txt=document.getElementById('commentGeneralTxt').value.trim();
-  if(!SEMANA_ID){const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id});if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}}
+  if(!SEMANA_ID){const r=await apiUpsert('roster_semanas',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id},['local','fecha_lunes']);if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}}
   else await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
 };
 window.publicarRoster=function(){toast('✓ Roster publicado — el equipo ya puede ver sus turnos');};
@@ -823,7 +830,7 @@ window.guardarTurno=async function(){
     const existing=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
     if(existing&&existing.length){SEMANA_ID=existing[0].id;SEMANA_OBJ=existing[0];}
     else{
-      const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+      const r=await apiUpsert('roster_semanas',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id},['local','fecha_lunes']);
       if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error al crear semana');return;}
     }
   }
@@ -1249,7 +1256,7 @@ window.aplicarTurnoEst=async function(){
     const existing=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
     if(existing&&existing.length){SEMANA_ID=existing[0].id;SEMANA_OBJ=existing[0];}
     else{
-      const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+      const r=await apiUpsert('roster_semanas',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id},['local','fecha_lunes']);
       if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error al crear semana');return;}
     }
   }
