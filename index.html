@@ -820,8 +820,12 @@ window.guardarTurno=async function(){
   const hora=h?(h+':'+m):null;
   const comment=document.getElementById('turnoComment').value.trim();
   if(!SEMANA_ID){
-    const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
-    if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error');return;}
+    const existing=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
+    if(existing&&existing.length){SEMANA_ID=existing[0].id;SEMANA_OBJ=existing[0];}
+    else{
+      const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+      if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error al crear semana');return;}
+    }
   }
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
@@ -1239,19 +1243,24 @@ window.aplicarTurnoEst=async function(){
     }
   }
   
-  // Create semana if needed
+  // Create semana once before the loop
   if(!SEMANA_ID){
-    const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
-    if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error');return;}
+    // Try to get existing first to avoid 409
+    const existing=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
+    if(existing&&existing.length){SEMANA_ID=existing[0].id;SEMANA_OBJ=existing[0];}
+    else{
+      const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+      if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error al crear semana');return;}
+    }
   }
   
-  // Insert 7 days
+  // Insert 7 days sequentially
   const dias=diasDeSemana(SEMANA_ACTUAL);
   for(let i=0;i<7;i++){
     const dKey=DIAS_TE[i];
-    const hora=t[dKey];
+    const hora=t[dKey]||null;
     const dia=dias[i];
-    const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:!hora,hora_entrada:hora||null,comentario:null};
+    const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:hora===null,hora_entrada:hora,comentario:null};
     const r=await api('roster_turnos','POST',data);
     if(r&&r.length)TURNOS_MAP[`${empId}_${dia}`]=r[0];
   }
