@@ -300,8 +300,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <select id="incFiltEstado" onchange="loadIncidencias()">
         <option value="">Todos los estados</option>
         <option value="pendiente">⏳ Pendientes</option>
-        <option value="aprobado">✓ Aprobadas</option>
-        <option value="rechazado">✗ Rechazadas</option>
+        <option value="procesada">✓ Procesadas</option>
       </select>
     </div>
     <div class="inc-list" id="incList"></div>
@@ -750,7 +749,7 @@ function buildDash(){
 // ── VIEWS ─────────────────────────────────────────
 function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
-  if((id==='vEmpleados'||id==='vUsuarios')&&!esMaster()){toast('Solo master');return;}
+  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos')&&!esMaster()){toast('Solo master');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
   if(id==='vRoster')initRoster();
@@ -758,6 +757,7 @@ function showView(id){
   if(id==='vIncidencias')loadIncidencias();
   if(id==='vEmpleados')loadEmpleados();
   if(id==='vUsuarios')loadUsuarios();
+  if(id==='vTurnos')showView_vTurnos();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -802,7 +802,7 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 // ── ROSTER ────────────────────────────────────────
 async function initRoster(){
   if(!SEMANA_ACTUAL)SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
-  await loadEmpleadosData();
+  await loadEmpleados(false);
   // Only show locales this editor can see
   const locales=Object.keys(LOCAL_LABELS).filter(l=>esMaster()||puedeEditarLocal(l));
   if(!LOCAL_ACTUAL||!locales.includes(LOCAL_ACTUAL))LOCAL_ACTUAL=locales[0];
@@ -921,6 +921,8 @@ window.guardarTurno=async function(){
   const m=document.getElementById('turnoHoraM').value;
   const hora=h?(h+':'+m):null;
   const comment=document.getElementById('turnoComment').value.trim();
+  // Validación: si es modo Trabajo, la hora es obligatoria
+  if(!esOff&&!esFlex&&!hora){toast('Elegí una hora o seleccioná Flex u OFF');return;}
   if(!SEMANA_ID){
     const existing=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
     if(existing&&existing.length){SEMANA_ID=existing[0].id;SEMANA_OBJ=existing[0];}
@@ -993,15 +995,18 @@ window.guardarIncidencia=async function(){
   const tipo=document.getElementById('incTipo').value;
   const fecha=document.getElementById('incFecha').value;
   const desc=document.getElementById('incDesc').value.trim();
+  if(!fecha){toast('Elegí una fecha');return;}
   if(!desc){toast('Describí la incidencia');return;}
-  await api('incidencias','POST',{empleado_id:CU.empleado_id||null,fecha,tipo,descripcion:desc,estado:'pendiente'});
+  if(!CU.empleado_id){toast('Tu usuario no está vinculado a un colaborador. Pedile al admin que lo configure.');return;}
+  await api('incidencias','POST',{empleado_id:CU.empleado_id,fecha,tipo,descripcion:desc,estado:'pendiente'});
   closeOv('ovIncidencia');toast('✓ Incidencia enviada');
 };
 window.loadIncidencias=async function(){
   const local=document.getElementById('incFiltLocal').value;
   const estado=document.getElementById('incFiltEstado').value;
   let q='incidencias?select=*,empleado:empleado_id(nombre,apellido,local,sector)&order=creado_en.desc&limit=100';
-  if(estado)q+=`&estado=eq.${estado}`;
+  if(estado==='pendiente')q+=`&estado=eq.pendiente`;
+  else if(estado==='procesada')q+=`&estado=in.(aprobado,rechazado)`;
   const data=await api(q)||[];
   const filtered=local?data.filter(i=>i.empleado?.local===local):data;
   const list=document.getElementById('incList');
@@ -1012,7 +1017,7 @@ window.loadIncidencias=async function(){
       <div class="inc-info">
         <div class="nombre">${i.empleado?.apellido||i.empleado?.nombre||'—'}</div>
         <div class="meta">${LOCAL_LABELS[i.empleado?.local]||'—'} · ${i.empleado?.sector||''} · ${fmt(i.fecha)}</div>
-        <div style="margin-top:4px"><span class="badge b-${i.estado}">${TIPOS[i.tipo]||i.tipo}</span></div>
+        <div style="margin-top:4px"><span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${TIPOS[i.tipo]||i.tipo}</span></div>
         ${i.descripcion?`<div class="desc" style="margin-top:4px;font-size:12px">${i.descripcion}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
@@ -1027,7 +1032,7 @@ window.loadIncidencias=async function(){
 };
 window.resolverInc=async function(id,estado){
   await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
-  toast(estado==='aprobado'?'✓ Aprobada':'✗ Rechazada');
+  toast('✓ Procesada');
   loadIncidencias();
 };
 
@@ -1068,7 +1073,7 @@ window.resolverIncDesdeGrilla=async function(id,estado){
   // Actualizar el INC_MAP local
   const inc=Object.values(INC_MAP).find(x=>x.id===id);
   if(inc){inc.estado=estado;inc.revisado_por=CU.id;inc.revisado_en=new Date().toISOString();}
-  toast(estado==='aprobado'?'✓ Aprobada':'✗ Rechazada');
+  toast('✓ Procesada');
   closeOv('ovIncDetalle');
   renderRosterTable(puedeEditarLocal(LOCAL_ACTUAL));
 };
@@ -1087,12 +1092,12 @@ window.toggleOtroCargo=function(){
   const v=document.getElementById('eCategoria').value;
   document.getElementById('otroCargoWrap').style.display=v==='OTRO'?'block':'none';
 };
-async function loadEmpleados(){
+async function loadEmpleados(force=true){
+  if(!force&&EMPLEADOS.length)return;
   const data=await api('empleados?select=*&activo=neq.false&order=apellido.asc,nombre.asc')||[];
-  EMPLEADOS=data;renderEmpleados();
-}
-async function loadEmpleadosData(){
-  if(!EMPLEADOS.length){const d=await api('empleados?select=*&activo=neq.false&order=apellido.asc')||[];EMPLEADOS=d;}
+  EMPLEADOS=data;
+  // Solo re-renderizar si la vista de empleados está activa
+  if(document.getElementById('vEmpleados')?.classList.contains('active'))renderEmpleados();
 }
 function renderEmpleados(){
   const s=(document.getElementById('empSearch')?.value||'').toLowerCase();
@@ -1181,7 +1186,7 @@ async function loadUsuarios(){
   const data=await api('roster_usuarios?select=*&order=perfil.asc,nombre.asc')||[];
   USUARIOS_R=data;renderUsuarios();
   // Also populate empleados select
-  await loadEmpleadosData();
+  await loadEmpleados(false);
   const sel=document.getElementById('uEmpleadoId');
   const cur=sel.value;
   sel.innerHTML='<option value="">Sin vincular</option>'+
@@ -1350,6 +1355,9 @@ window.guardarTurnoEst=async function(){
     dom_flex:document.getElementById('teDomFlex').checked,
     activo:true
   };
+  // Validación: al menos un día tiene que tener hora o flex (sino son los 7 OFF)
+  const tieneAlgo=DIAS_TE.some(d=>data[d]||data[d+'_flex']);
+  if(!tieneAlgo){toast('Cargá al menos un día con hora o Flex');return;}
   if(teId){await api(`turnos_estandar?id=eq.${teId}`,'PATCH',data);toast('✓ Turno actualizado');}
   else{await api('turnos_estandar','POST',{...data,creado_por:CU.id});toast('✓ Turno creado');}
   closeOv('ovTurnoEst');await loadTurnosEst();renderTurnos();
@@ -1453,20 +1461,7 @@ window.aplicarTurnoEst=async function(){
   toast(`✓ Turno "${t.nombre}" aplicado`);
 };
 
-// ── OVERRIDE showView to handle vTurnos ───────────────
-const _showView=showView;
-showView=function(id){
-  if(id==='vTurnos'){
-    if(!esMaster()){toast('Solo master');return;}
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById('vTurnos').classList.add('active');
-    showView_vTurnos();
-    return;
-  }
-  _showView(id);
-};
-window.showView=showView;
-
+// ── INIT ──────────────────────────────────────────
 checkSession();
 })();
 </script>
