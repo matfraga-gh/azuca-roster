@@ -524,6 +524,98 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
 </div>
 
+<!-- TURNOS ESTÁNDAR -->
+<div id="vTurnos" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Turnos Estándar</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" onclick="openTurnoEstModal()">+ Nuevo</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="ptitle">Turnos Estándar</div>
+    <div class="psub">Plantillas de turnos semanales. El domingo siempre es OFF por defecto.</div>
+    <div class="toolbar">
+      <select id="teFiltLocal" onchange="renderTurnos()">
+        <option value="">Todos los locales</option>
+        <option value="TODOS">Globales</option>
+        <option value="1-AZUCA">Azuca</option>
+        <option value="2-AZAFRAN">Azafrán</option>
+        <option value="3-NIETO">Nieto</option>
+        <option value="4-VIÑA COBOS">Viña Cobos</option>
+        <option value="5-TRAPICHE">Trapiche</option>
+        <option value="VINOBIEN">Vinobien</option>
+      </select>
+    </div>
+    <div class="tw"><table class="tbl">
+      <thead><tr><th>Nombre</th><th>Local</th><th>Lun</th><th>Mar</th><th>Mié</th><th>Jue</th><th>Vie</th><th>Sáb</th><th>Dom</th><th></th></tr></thead>
+      <tbody id="turnosTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- Modal Turno Estándar -->
+<div class="overlay" id="ovTurnoEst">
+  <div class="modal" style="max-width:560px">
+    <button class="mc" onclick="closeOv('ovTurnoEst')">✕</button>
+    <h2 id="teModalTitle">Nuevo Turno Estándar</h2>
+    <div class="frow">
+      <div class="fg"><label>Nombre</label><input type="text" id="teNombre" placeholder="Ej: Cocina mañana"></div>
+      <div class="fg"><label>Local</label>
+        <select id="teLocal">
+          <option value="TODOS">Global (todos los locales)</option>
+          <option value="1-AZUCA">Azuca</option>
+          <option value="2-AZAFRAN">Azafrán</option>
+          <option value="3-NIETO">Nieto</option>
+          <option value="4-VIÑA COBOS">Viña Cobos</option>
+          <option value="5-TRAPICHE">Trapiche</option>
+          <option value="VINOBIEN">Vinobien</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:10px">Hora de entrada por día (vacío = OFF)</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;text-align:center">
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">LUN</div><input type="time" id="teLun" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MAR</div><input type="time" id="teMar" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MIÉ</div><input type="time" id="teMie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">JUE</div><input type="time" id="teJue" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">VIE</div><input type="time" id="teVie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">SÁB</div><input type="time" id="teSab" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px;color:var(--off-text)">DOM</div><input type="time" id="teDom" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid #F0E060;border-radius:6px;background:var(--off-bg);text-align:center" placeholder="OFF"></div>
+      </div>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovTurnoEst')">Cancelar</button>
+      <button class="btn bd" id="btnBorrarTE" onclick="borrarTurnoEst()" style="display:none">Eliminar</button>
+      <button class="btn bp" onclick="guardarTurnoEst()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Aplicar Turno Estándar -->
+<div class="overlay" id="ovAplicarTE">
+  <div class="modal">
+    <button class="mc" onclick="closeOv('ovAplicarTE')">✕</button>
+    <h2 id="aplicarTETitle">Aplicar turno estándar</h2>
+    <div class="fg" style="margin-bottom:16px">
+      <label>Seleccionar turno</label>
+      <select id="teSelector" onchange="previsualizarTE()">
+        <option value="">Elegir turno...</option>
+      </select>
+    </div>
+    <div id="tePrev" style="display:none;background:var(--cream);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:var(--gray);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Vista previa</div>
+      <div id="tePrevGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;font-size:12px"></div>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovAplicarTE')">Cancelar</button>
+      <button class="btn bp" onclick="aplicarTurnoEst()">Aplicar a esta semana</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -603,6 +695,7 @@ function buildDash(){
   if(esMaster()){
     cards.push({i:'👥',t:'Colaboradores',d:'Gestión del personal',a:"showView('vEmpleados')"});
     cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
+    cards.push({i:'📋',t:'Turnos Estándar',d:'Plantillas de turnos semanales',a:"showView('vTurnos')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -676,7 +769,12 @@ function renderRosterTable(puedeEditar){
   if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores para este local</td></tr>`;return;}
   document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
     <tr>
-      <td class="emp-cell">${emp.apellido||emp.nombre}<div class="sector">${emp.sector||''} · ${emp.categoria||''}</div></td>
+      <td class="emp-cell">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>${emp.apellido||emp.nombre}<div class="sector">${emp.sector||''} · ${emp.categoria||''}</div></div>
+          ${puedeEditar?`<button onclick="abrirAplicarTE(${emp.id})" title="Aplicar turno estándar" style="background:none;border:1px solid var(--sand);border-radius:6px;padding:2px 6px;font-size:10px;cursor:pointer;color:var(--gray);white-space:nowrap">📋</button>`:''}
+        </div>
+      </td>
       ${dias.map(dia=>{
         const key=`${emp.id}_${dia}`;const t=TURNOS_MAP[key];
         const onclick=puedeEditar?`onclick="editTurno(${emp.id},'${dia}')"` :'';
@@ -1008,6 +1106,174 @@ window.toggleUser=async function(id,activo){
   toast(activo?'Usuario desactivado':'Usuario activado');
   await loadUsuarios();
 };
+
+
+// ── TURNOS ESTÁNDAR ───────────────────────────────
+let TURNOS_EST=[],teId=null,teEmpId=null;
+const DIAS_TE=['lun','mar','mie','jue','vie','sab','dom'];
+const DIAS_LABEL=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+async function loadTurnosEst(){
+  const data=await api('turnos_estandar?select=*&activo=eq.true&order=local.asc,nombre.asc')||[];
+  TURNOS_EST=data;
+}
+async function showView_vTurnos(){
+  await loadTurnosEst();renderTurnos();
+}
+
+function renderTurnos(){
+  const filt=document.getElementById('teFiltLocal')?.value||'';
+  const f=filt?TURNOS_EST.filter(t=>t.local===filt):TURNOS_EST;
+  const tb=document.getElementById('turnosTbody');
+  if(!f.length){tb.innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Sin turnos estándar</td></tr>`;return;}
+  const fmtH=h=>h?`<strong>${h.slice(0,5)}</strong>`:`<span style="color:var(--off-text);background:var(--off-bg);padding:2px 6px;border-radius:10px;font-size:10px">OFF</span>`;
+  tb.innerHTML=f.map(t=>`<tr>
+    <td><strong>${t.nombre}</strong></td>
+    <td>${t.local==='TODOS'?'🌐 Global':LOCAL_LABELS[t.local]||t.local}</td>
+    ${DIAS_TE.map(d=>`<td style="text-align:center">${fmtH(t[d])}</td>`).join('')}
+    <td><button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editTurnoEst(${t.id})">✏️</button></td>
+  </tr>`).join('');
+}
+window.renderTurnos=renderTurnos;
+
+function openTurnoEstModal(){
+  teId=null;
+  document.getElementById('teModalTitle').textContent='Nuevo Turno Estándar';
+  document.getElementById('teNombre').value='';
+  document.getElementById('teLocal').value='TODOS';
+  DIAS_TE.forEach(d=>document.getElementById('te'+d.charAt(0).toUpperCase()+d.slice(1)).value='');
+  document.getElementById('btnBorrarTE').style.display='none';
+  openOv('ovTurnoEst');
+}
+window.openTurnoEstModal=openTurnoEstModal;
+
+function editTurnoEst(id){
+  const t=TURNOS_EST.find(x=>x.id===id);if(!t)return;
+  teId=id;
+  document.getElementById('teModalTitle').textContent='Editar Turno Estándar';
+  document.getElementById('teNombre').value=t.nombre||'';
+  document.getElementById('teLocal').value=t.local||'TODOS';
+  DIAS_TE.forEach(d=>{
+    const el=document.getElementById('te'+d.charAt(0).toUpperCase()+d.slice(1));
+    if(el)el.value=t[d]||'';
+  });
+  document.getElementById('btnBorrarTE').style.display='';
+  openOv('ovTurnoEst');
+}
+window.editTurnoEst=editTurnoEst;
+
+window.guardarTurnoEst=async function(){
+  const nombre=document.getElementById('teNombre').value.trim();
+  if(!nombre){toast('Ingresá un nombre');return;}
+  const data={
+    nombre,local:document.getElementById('teLocal').value,
+    lun:document.getElementById('teLun').value||null,
+    mar:document.getElementById('teMar').value||null,
+    mie:document.getElementById('teMie').value||null,
+    jue:document.getElementById('teJue').value||null,
+    vie:document.getElementById('teVie').value||null,
+    sab:document.getElementById('teSab').value||null,
+    dom:document.getElementById('teDom').value||null,
+    activo:true
+  };
+  if(teId){await api(`turnos_estandar?id=eq.${teId}`,'PATCH',data);toast('✓ Turno actualizado');}
+  else{await api('turnos_estandar','POST',{...data,creado_por:CU.id});toast('✓ Turno creado');}
+  closeOv('ovTurnoEst');await loadTurnosEst();renderTurnos();
+};
+
+window.borrarTurnoEst=async function(){
+  if(!confirm('¿Eliminar este turno estándar?'))return;
+  await api(`turnos_estandar?id=eq.${teId}`,'PATCH',{activo:false});
+  closeOv('ovTurnoEst');toast('Turno eliminado');
+  await loadTurnosEst();renderTurnos();
+};
+
+// Aplicar turno estándar a un colaborador
+window.abrirAplicarTE=async function(empId){
+  teEmpId=empId;
+  const emp=EMPLEADOS.find(e=>e.id===empId);
+  document.getElementById('aplicarTETitle').textContent=`Turno para ${emp?.apellido||emp?.nombre||''}`;
+  // Load if needed
+  if(!TURNOS_EST.length)await loadTurnosEst();
+  // Filter by local or TODOS
+  const local=emp?.local||'';
+  const disponibles=TURNOS_EST.filter(t=>t.local==='TODOS'||t.local===local);
+  const sel=document.getElementById('teSelector');
+  sel.innerHTML='<option value="">Elegir turno...</option>'+
+    disponibles.map(t=>`<option value="${t.id}">${t.nombre}${t.local==='TODOS'?' (global)':''}</option>`).join('');
+  document.getElementById('tePrev').style.display='none';
+  openOv('ovAplicarTE');
+};
+
+window.previsualizarTE=function(){
+  const id=parseInt(document.getElementById('teSelector').value);
+  const t=TURNOS_EST.find(x=>x.id===id);
+  const prev=document.getElementById('tePrev');
+  if(!t){prev.style.display='none';return;}
+  prev.style.display='block';
+  document.getElementById('tePrevGrid').innerHTML=DIAS_TE.map((d,i)=>`
+    <div>
+      <div style="font-size:10px;color:var(--gray);margin-bottom:4px">${DIAS_LABEL[i]}</div>
+      ${t[d]
+        ?`<div style="font-weight:700;font-size:13px">${t[d].slice(0,5)}</div>`
+        :`<div style="font-size:11px;color:var(--off-text);background:var(--off-bg);padding:2px 6px;border-radius:10px">OFF</div>`
+      }
+    </div>`).join('');
+};
+
+window.aplicarTurnoEst=async function(){
+  const id=parseInt(document.getElementById('teSelector').value);
+  if(!id){toast('Elegí un turno');return;}
+  const t=TURNOS_EST.find(x=>x.id===id);
+  const empId=teEmpId;
+  
+  // Check if there are existing turnos this week
+  const existentes=Object.keys(TURNOS_MAP).filter(k=>k.startsWith(empId+'_'));
+  if(existentes.length>0){
+    if(!confirm(`Ya hay turnos cargados para esta semana. ¿Reemplazarlos con "${t.nombre}"?`))return;
+    // Delete existing
+    for(const key of existentes){
+      const existing=TURNOS_MAP[key];
+      if(existing?.id)await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');
+      delete TURNOS_MAP[key];
+    }
+  }
+  
+  // Create semana if needed
+  if(!SEMANA_ID){
+    const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+    if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error');return;}
+  }
+  
+  // Insert 7 days
+  const dias=diasDeSemana(SEMANA_ACTUAL);
+  for(let i=0;i<7;i++){
+    const dKey=DIAS_TE[i];
+    const hora=t[dKey];
+    const dia=dias[i];
+    const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:!hora,hora_entrada:hora||null,comentario:null};
+    const r=await api('roster_turnos','POST',data);
+    if(r&&r.length)TURNOS_MAP[`${empId}_${dia}`]=r[0];
+  }
+  
+  closeOv('ovAplicarTE');
+  renderRosterTable(true);
+  toast(`✓ Turno "${t.nombre}" aplicado`);
+};
+
+// ── OVERRIDE showView to handle vTurnos ───────────────
+const _showView=showView;
+showView=function(id){
+  if(id==='vTurnos'){
+    if(!esMaster()){toast('Solo master');return;}
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('vTurnos').classList.add('active');
+    showView_vTurnos();
+    return;
+  }
+  _showView(id);
+};
+window.showView=showView;
 
 checkSession();
 })();
