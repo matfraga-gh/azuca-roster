@@ -96,6 +96,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .turno-vacio{font-size:11px;color:var(--sand);font-style:italic}
 .turno-comment{font-size:9px;color:var(--olive);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .turno-cell.readonly{cursor:default}.turno-cell.readonly:hover{background:transparent}
+.turno-cell.pasado{opacity:.55;background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(0,0,0,.04) 6px 12px);cursor:not-allowed}
+.turno-cell.pasado:hover{background:repeating-linear-gradient(45deg,transparent 0 6px,rgba(0,0,0,.04) 6px 12px)}
 
 /* COMMENT BOX */
 .comment-general{background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px}
@@ -663,6 +665,14 @@ function formatSemana(l){const d=diasDeSemana(l);return `Semana del ${fmt(d[0])}
 
 // ── PERFIL ───────────────────────────────────────
 function esMaster(){return CU?.perfil==='master';}
+function esDiaPasado(dia){
+  // Master puede editar cualquier día
+  if(esMaster())return false;
+  // Comparar día (YYYY-MM-DD) contra hoy local
+  const hoy=new Date();
+  const hoyStr=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+  return dia<hoyStr;
+}
 function esEditorPerfil(){return CU?.perfil==='master'||CU?.perfil==='editor';}
 function puedeEditarLocal(local){
   if(esMaster())return true;
@@ -785,11 +795,14 @@ function renderRosterTable(puedeEditar){
       </td>
       ${dias.map(dia=>{
         const key=`${emp.id}_${dia}`;const t=TURNOS_MAP[key];
-        const onclick=puedeEditar?`onclick="editTurno(${emp.id},'${dia}')"` :'';
-        const cls=`turno-cell${puedeEditar?'':' readonly'}`;
-        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}><span class="turno-off">OFF</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
-        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
-        return`<td><div class="${cls}" ${onclick}><span class="turno-vacio">${puedeEditar?'+ agregar':'—'}</span></div></td>`;
+        const pasado=esDiaPasado(dia);
+        const editable=puedeEditar&&!pasado;
+        const onclick=editable?`onclick="editTurno(${emp.id},'${dia}')"` :'';
+        const cls=`turno-cell${editable?'':' readonly'}${pasado?' pasado':''}`;
+        const tip=pasado?' title="Día pasado - no editable"':'';
+        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-off">OFF</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
     </tr>`).join('');
 }
@@ -802,6 +815,7 @@ window.publicarRoster=function(){toast('✓ Roster publicado — el equipo ya pu
 
 // ── TURNO ─────────────────────────────────────────
 window.editTurno=function(empId,dia){
+  if(esDiaPasado(dia)){toast('No se pueden editar días pasados');return;}
   const t=TURNOS_MAP[`${empId}_${dia}`];
   const emp=EMPLEADOS.find(e=>e.id===empId);
   document.getElementById('turnoTitle').textContent=`${emp?.apellido||emp?.nombre||''} — ${fmt(dia)}`;
@@ -1239,11 +1253,15 @@ window.aplicarTurnoEst=async function(){
   const t=TURNOS_EST.find(x=>x.id===id);
   const empId=teEmpId;
   
-  // Check if there are existing turnos this week
-  const existentes=Object.keys(TURNOS_MAP).filter(k=>k.startsWith(empId+'_'));
+  // Check if there are existing turnos this week (solo los editables)
+  const existentes=Object.keys(TURNOS_MAP).filter(k=>{
+    if(!k.startsWith(empId+'_'))return false;
+    const dia=k.split('_')[1];
+    return !esDiaPasado(dia);
+  });
   if(existentes.length>0){
     if(!confirm(`Ya hay turnos cargados para esta semana. ¿Reemplazarlos con "${t.nombre}"?`))return;
-    // Delete existing
+    // Delete existing (solo los no pasados)
     for(const key of existentes){
       const existing=TURNOS_MAP[key];
       if(existing?.id)await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');
@@ -1262,12 +1280,13 @@ window.aplicarTurnoEst=async function(){
     }
   }
   
-  // Insert 7 days sequentially
+  // Insert 7 days sequentially (salteando días pasados)
   const dias=diasDeSemana(SEMANA_ACTUAL);
   for(let i=0;i<7;i++){
     const dKey=DIAS_TE[i];
     const hora=t[dKey]||null;
     const dia=dias[i];
+    if(esDiaPasado(dia))continue;
     const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:hora===null,hora_entrada:hora,comentario:null};
     const r=await api('roster_turnos','POST',data);
     if(r&&r.length)TURNOS_MAP[`${empId}_${dia}`]=r[0];
