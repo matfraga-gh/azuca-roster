@@ -93,6 +93,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .turno-cell:hover{background:var(--cream)}
 .turno-hora{font-size:13px;font-weight:600;color:var(--dark)}
 .turno-off{font-size:12px;font-weight:700;color:var(--off-text);background:var(--off-bg);padding:3px 10px;border-radius:20px;letter-spacing:1px}
+.turno-flex{font-size:12px;font-weight:700;color:#5B3A8E;background:#EDE3F7;padding:3px 10px;border-radius:20px;letter-spacing:.5px;display:inline-flex;align-items:center;gap:3px}
+.turno-flex-hora{font-size:11px;color:#5B3A8E;font-weight:600;margin-top:2px}
 .turno-vacio{font-size:11px;color:var(--sand);font-style:italic}
 .turno-comment{font-size:9px;color:var(--olive);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .turno-cell.readonly{cursor:default}.turno-cell.readonly:hover{background:transparent}
@@ -166,6 +168,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .off-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--sand);background:var(--white);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--gray);transition:all .2s;text-align:center}
 .off-btn.active-work{background:var(--olive);border-color:var(--olive);color:var(--white)}
 .off-btn.active-off{background:var(--off-bg);border-color:#F0E060;color:var(--off-text)}
+.off-btn.active-flex{background:#EDE3F7;border-color:#5B3A8E;color:#5B3A8E}
 
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:var(--cream);padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
@@ -357,11 +360,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     <input type="hidden" id="turnoDia">
     <div class="off-toggle">
       <div class="off-btn active-work" id="btnWork" onclick="setTurnoMode('work')">🕐 Turno</div>
+      <div class="off-btn" id="btnFlex" onclick="setTurnoMode('flex')">🔄 Flex</div>
       <div class="off-btn" id="btnOff" onclick="setTurnoMode('off')">☀️ OFF</div>
     </div>
     <div id="turnoHoraWrap">
       <div class="frow" style="margin-bottom:12px">
-        <div class="fg"><label>Hora</label>
+        <div class="fg"><label id="turnoHoraLabel">Hora</label>
           <select id="turnoHoraH" style="font-size:22px;font-weight:700;text-align:center;padding:10px">
             <option value="">--</option>
             <option value="07">07</option><option value="08">08</option><option value="09">09</option>
@@ -577,15 +581,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       </div>
     </div>
     <div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:12px">
-      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:10px">Hora de entrada por día (vacío = OFF)</div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:10px">Hora por día (vacío y sin Flex = OFF)</div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;text-align:center">
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">LUN</div><input type="time" id="teLun" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MAR</div><input type="time" id="teMar" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MIÉ</div><input type="time" id="teMie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">JUE</div><input type="time" id="teJue" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">VIE</div><input type="time" id="teVie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">SÁB</div><input type="time" id="teSab" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"></div>
-        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px;color:var(--off-text)">DOM</div><input type="time" id="teDom" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid #F0E060;border-radius:6px;background:var(--off-bg);text-align:center" placeholder="OFF"></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">LUN</div><input type="time" id="teLun" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teLunFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MAR</div><input type="time" id="teMar" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teMarFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">MIÉ</div><input type="time" id="teMie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teMieFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">JUE</div><input type="time" id="teJue" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teJueFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">VIE</div><input type="time" id="teVie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teVieFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">SÁB</div><input type="time" id="teSab" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teSabFlex" style="width:auto;margin:0">🔄 Flex</label></div>
+        <div><div style="font-size:10px;color:var(--gray);margin-bottom:4px;color:var(--off-text)">DOM</div><input type="time" id="teDom" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid #F0E060;border-radius:6px;background:var(--off-bg);text-align:center" placeholder="OFF"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teDomFlex" style="width:auto;margin:0">🔄 Flex</label></div>
       </div>
     </div>
     <div class="ma">
@@ -800,8 +804,13 @@ function renderRosterTable(puedeEditar){
         const onclick=editable?`onclick="editTurno(${emp.id},'${dia}')"` :'';
         const cls=`turno-cell${editable?'':' readonly'}${pasado?' pasado':''}`;
         const tip=pasado?' title="Día pasado - no editable"':'';
-        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-off">OFF</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
-        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        const cmt=t?.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:'';
+        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-off">OFF</span>${cmt}</div></td>`;
+        if(t&&t.es_flex){
+          const horaTxt=t.hora_entrada?`<div class="turno-flex-hora">${t.hora_entrada.slice(0,5)}</div>`:'';
+          return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-flex">🔄 FLEX</span>${horaTxt}${cmt}</div></td>`;
+        }
+        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
         return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
     </tr>`).join('');
@@ -825,18 +834,22 @@ window.editTurno=function(empId,dia){
   document.getElementById('turnoHoraH').value=he?he.split(':')[0]:'';
   document.getElementById('turnoHoraM').value=he?he.split(':')[1]||'00':'00';
   document.getElementById('turnoComment').value=t?.comentario||'';
-  setTurnoMode(t?.es_off?'off':'work');
+  const modo=t?.es_off?'off':(t?.es_flex?'flex':'work');
+  setTurnoMode(modo);
   openOv('ovTurno');
 };
 window.setTurnoMode=function(m){
   document.getElementById('btnWork').className='off-btn'+(m==='work'?' active-work':'');
+  document.getElementById('btnFlex').className='off-btn'+(m==='flex'?' active-flex':'');
   document.getElementById('btnOff').className='off-btn'+(m==='off'?' active-off':'');
-  document.getElementById('turnoHoraWrap').style.display=m==='work'?'block':'none';
+  document.getElementById('turnoHoraWrap').style.display=m==='off'?'none':'block';
+  document.getElementById('turnoHoraLabel').textContent=m==='flex'?'Hora orientativa (opcional)':'Hora';
 };
 window.guardarTurno=async function(){
   const empId=parseInt(document.getElementById('turnoEmpId').value);
   const dia=document.getElementById('turnoDia').value;
   const esOff=document.getElementById('btnOff').classList.contains('active-off');
+  const esFlex=document.getElementById('btnFlex').classList.contains('active-flex');
   const h=document.getElementById('turnoHoraH').value;
   const m=document.getElementById('turnoHoraM').value;
   const hora=h?(h+':'+m):null;
@@ -851,7 +864,7 @@ window.guardarTurno=async function(){
   }
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
-  const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,hora_entrada:esOff?null:hora,comentario:comment||null};
+  const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,es_flex:esFlex,hora_entrada:esOff?null:hora,comentario:comment||null};
   if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);TURNOS_MAP[key]={...existing,...data};}
   else{const r=await api('roster_turnos','POST',data);if(r&&r.length)TURNOS_MAP[key]=r[0];}
   closeOv('ovTurno');renderRosterTable(true);toast('✓ Turno guardado');
@@ -885,11 +898,15 @@ async function renderMiSemana(emp){
     }
   }
   document.getElementById('miSemanaGrid').innerHTML=dias.map((dia,i)=>{
-    const t=turnos[dia];const esOff=t?.es_off;
+    const t=turnos[dia];const esOff=t?.es_off;const esFlex=t?.es_flex;
+    let txt;
+    if(esOff)txt='OFF';
+    else if(esFlex)txt=t?.hora_entrada?`🔄 FLEX ${t.hora_entrada.slice(0,5)}`:'🔄 FLEX';
+    else txt=t?.hora_entrada?t.hora_entrada.slice(0,5):'—';
     return`<div class="dia-card ${esOff?'off':''}">
       <div class="dia-nombre">${DIAS[i]}</div>
       <div class="dia-fecha">${fmt(dia)}</div>
-      <div class="dia-hora">${esOff?'OFF':t?.hora_entrada?t.hora_entrada.slice(0,5):'—'}</div>
+      <div class="dia-hora">${txt}</div>
       ${t?.comentario?`<div class="dia-comment">💬 ${t.comentario}</div>`:''}
     </div>`;}).join('');
   const cg=document.getElementById('miComentGeneral');
@@ -1167,7 +1184,12 @@ function openTurnoEstModal(){
   document.getElementById('teModalTitle').textContent='Nuevo Turno Estándar';
   document.getElementById('teNombre').value='';
   document.getElementById('teLocal').value='TODOS';
-  DIAS_TE.forEach(d=>document.getElementById('te'+d.charAt(0).toUpperCase()+d.slice(1)).value='');
+  DIAS_TE.forEach(d=>{
+    const cap=d.charAt(0).toUpperCase()+d.slice(1);
+    document.getElementById('te'+cap).value='';
+    const elFlex=document.getElementById('te'+cap+'Flex');
+    if(elFlex)elFlex.checked=false;
+  });
   document.getElementById('btnBorrarTE').style.display='none';
   openOv('ovTurnoEst');
 }
@@ -1180,8 +1202,11 @@ function editTurnoEst(id){
   document.getElementById('teNombre').value=t.nombre||'';
   document.getElementById('teLocal').value=t.local||'TODOS';
   DIAS_TE.forEach(d=>{
-    const el=document.getElementById('te'+d.charAt(0).toUpperCase()+d.slice(1));
+    const cap=d.charAt(0).toUpperCase()+d.slice(1);
+    const el=document.getElementById('te'+cap);
     if(el)el.value=t[d]||'';
+    const elFlex=document.getElementById('te'+cap+'Flex');
+    if(elFlex)elFlex.checked=!!t[d+'_flex'];
   });
   document.getElementById('btnBorrarTE').style.display='';
   openOv('ovTurnoEst');
@@ -1200,6 +1225,13 @@ window.guardarTurnoEst=async function(){
     vie:document.getElementById('teVie').value||null,
     sab:document.getElementById('teSab').value||null,
     dom:document.getElementById('teDom').value||null,
+    lun_flex:document.getElementById('teLunFlex').checked,
+    mar_flex:document.getElementById('teMarFlex').checked,
+    mie_flex:document.getElementById('teMieFlex').checked,
+    jue_flex:document.getElementById('teJueFlex').checked,
+    vie_flex:document.getElementById('teVieFlex').checked,
+    sab_flex:document.getElementById('teSabFlex').checked,
+    dom_flex:document.getElementById('teDomFlex').checked,
     activo:true
   };
   if(teId){await api(`turnos_estandar?id=eq.${teId}`,'PATCH',data);toast('✓ Turno actualizado');}
@@ -1237,14 +1269,19 @@ window.previsualizarTE=function(){
   const prev=document.getElementById('tePrev');
   if(!t){prev.style.display='none';return;}
   prev.style.display='block';
-  document.getElementById('tePrevGrid').innerHTML=DIAS_TE.map((d,i)=>`
-    <div>
-      <div style="font-size:10px;color:var(--gray);margin-bottom:4px">${DIAS_LABEL[i]}</div>
-      ${t[d]
-        ?`<div style="font-weight:700;font-size:13px">${t[d].slice(0,5)}</div>`
-        :`<div style="font-size:11px;color:var(--off-text);background:var(--off-bg);padding:2px 6px;border-radius:10px">OFF</div>`
-      }
-    </div>`).join('');
+  document.getElementById('tePrevGrid').innerHTML=DIAS_TE.map((d,i)=>{
+    const hora=t[d];
+    const flex=t[d+'_flex'];
+    let chip;
+    if(flex){
+      chip=`<div style="font-size:11px;color:#5B3A8E;background:#EDE3F7;padding:2px 6px;border-radius:10px;font-weight:700">🔄 FLEX</div>${hora?`<div style="font-size:10px;color:#5B3A8E;margin-top:2px">${hora.slice(0,5)}</div>`:''}`;
+    }else if(hora){
+      chip=`<div style="font-weight:700;font-size:13px">${hora.slice(0,5)}</div>`;
+    }else{
+      chip=`<div style="font-size:11px;color:var(--off-text);background:var(--off-bg);padding:2px 6px;border-radius:10px">OFF</div>`;
+    }
+    return`<div><div style="font-size:10px;color:var(--gray);margin-bottom:4px">${DIAS_LABEL[i]}</div>${chip}</div>`;
+  }).join('');
 };
 
 window.aplicarTurnoEst=async function(){
@@ -1285,9 +1322,12 @@ window.aplicarTurnoEst=async function(){
   for(let i=0;i<7;i++){
     const dKey=DIAS_TE[i];
     const hora=t[dKey]||null;
+    const flex=!!t[dKey+'_flex'];
     const dia=dias[i];
     if(esDiaPasado(dia))continue;
-    const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:hora===null,hora_entrada:hora,comentario:null};
+    // Si no hay hora y no es flex → es OFF
+    const esOff=!flex&&hora===null;
+    const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,es_flex:flex,hora_entrada:hora,comentario:null};
     const r=await api('roster_turnos','POST',data);
     if(r&&r.length)TURNOS_MAP[`${empId}_${dia}`]=r[0];
   }
