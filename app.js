@@ -388,7 +388,7 @@ window.loadIncidencias=async function(){
         ${i.descripcion?`<div class="desc" style="margin-top:4px;font-size:12px">${esc(i.descripcion)}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
-        <span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${i.estado==='pendiente'?'⏳ Pendiente':'✓ Procesada'}</span>
+        <span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${i.estado==='pendiente'?'⏳ Pendiente':i.estado==='aprobado'?'✓ Procesada · Aceptada':'✓ Procesada · Denegada'}</span>
         ${i.estado==='pendiente'&&puedeEditarLocal(i.empleado?.local)?`
           <div style="display:flex;gap:6px">
             <button class="btn bp" style="padding:5px 10px;font-size:11px" title="Aprobar" onclick="resolverInc(${i.id},'aprobado')">✓</button>
@@ -398,8 +398,9 @@ window.loadIncidencias=async function(){
     </div>`).join('');
 };
 window.resolverInc=async function(id,estado){
-  await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
-  toast('✓ Procesada');
+  const r=await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
+  if(r===null){toast('Error al guardar el cambio');return;}
+  toast(estado==='aprobado'?'✓ Aceptada':'✓ Denegada');
   loadIncidencias();
 };
 
@@ -414,14 +415,26 @@ window.verIncidencia=async function(id){
   }
   const emp=EMPLEADOS.find(e=>e.id===inc.empleado_id);
   const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
-  const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Procesada',rechazado:'✓ Procesada'};
+  const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Procesada · Aceptada',rechazado:'✓ Procesada · Denegada'};
   document.getElementById('incDetTitle').textContent=`Incidencia — ${emp?.apellido||emp?.nombre||''}`;
+  // Si tiene revisor, traerlo
+  let revisorNombre='';
+  if(inc.revisado_por){
+    const rev=USUARIOS_R.find(u=>u.id===inc.revisado_por);
+    if(rev)revisorNombre=rev.nombre;
+    else{
+      const rRev=await api(`roster_usuarios?id=eq.${inc.revisado_por}&select=nombre`);
+      if(rRev&&rRev.length)revisorNombre=rRev[0].nombre;
+    }
+  }
+  const fechaRev=inc.revisado_en?new Date(inc.revisado_en).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   document.getElementById('incDetBody').innerHTML=`
     <div style="background:var(--cream);border-radius:10px;padding:14px;font-size:13px;line-height:1.6">
       <div><strong>Estado:</strong> ${ESTADOS[inc.estado]||esc(inc.estado)}</div>
       <div><strong>Tipo:</strong> ${TIPOS[inc.tipo]||esc(inc.tipo)}</div>
       <div><strong>Fecha:</strong> ${fmt(inc.fecha)}</div>
       ${inc.descripcion?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--sand-l)"><strong>Descripción:</strong><br>${esc(inc.descripcion)}</div>`:''}
+      ${revisorNombre?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--sand-l);font-size:12px;color:var(--gray)">Resuelta por <strong>${esc(revisorNombre)}</strong>${fechaRev?` el ${fechaRev}`:''}</div>`:''}
     </div>`;
   // Mostrar acciones según permisos y estado
   const actions=document.getElementById('incDetActions');
@@ -437,11 +450,12 @@ window.verIncidencia=async function(id){
 };
 
 window.resolverIncDesdeGrilla=async function(id,estado){
-  await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
+  const r=await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
+  if(r===null){toast('Error al guardar el cambio');return;}
   // Actualizar el INC_MAP local
   const inc=Object.values(INC_MAP).find(x=>x.id===id);
   if(inc){inc.estado=estado;inc.revisado_por=CU.id;inc.revisado_en=new Date().toISOString();}
-  toast('✓ Procesada');
+  toast(estado==='aprobado'?'✓ Aceptada':'✓ Denegada');
   closeOv('ovIncDetalle');
   renderRosterTable(puedeEditarLocal(LOCAL_ACTUAL));
 };
