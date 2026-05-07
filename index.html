@@ -89,7 +89,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .roster-table td:last-child{border-right:none}
 
 /* TURNO CELL */
-.turno-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:72px;cursor:pointer;border-radius:8px;padding:6px 4px;transition:background .15s}
+.turno-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:72px;cursor:pointer;border-radius:8px;padding:6px 4px;transition:background .15s;position:relative}
+.inc-dot{position:absolute;top:4px;right:4px;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--white);box-shadow:0 0 0 1px rgba(0,0,0,.1);cursor:pointer;z-index:2}
+.inc-dot.pendiente{background:#F5C842}
+.inc-dot.aprobado{background:#4CAF50}
+.inc-dot.rechazado{background:#D9534F}
+.inc-dot:hover{transform:scale(1.3);transition:transform .15s}
 .turno-cell:hover{background:var(--cream)}
 .turno-hora{font-size:13px;font-weight:600;color:var(--dark)}
 .turno-off{font-size:12px;font-weight:700;color:var(--off-text);background:var(--off-bg);padding:3px 10px;border-radius:20px;letter-spacing:1px}
@@ -253,7 +258,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Mi Semana</div></div>
     <div class="app-btns">
-      <button class="abtn ar" onclick="openIncidenciaModal()">⚠ Incidencia</button>
       <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
     </div>
   </div>
@@ -265,7 +269,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <button class="week-btn" onclick="cambiarSemanaEmp(1)">Siguiente →</button>
     </div>
     <div class="mi-semana-grid" id="miSemanaGrid"></div>
-    <div id="miComentGeneral" style="display:none;background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--gray)"></div>
+    <div id="miComentGeneral" style="display:none;background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--gray);margin-top:14px"></div>
+    <div style="margin-top:24px;text-align:center">
+      <button onclick="openIncidenciaModal()" style="background:var(--rust);color:var(--white);border:none;border-radius:12px;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(196,98,45,.25);transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(196,98,45,.35)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(196,98,45,.25)'">⚠ Reportar incidencia</button>
+      <div style="font-size:11px;color:var(--gray);margin-top:8px">Ej: llegada tarde, enfermedad, cambio de turno, ausencia</div>
+    </div>
   </div>
 </div>
 
@@ -409,6 +417,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         <select id="incTipo">
           <option value="tardanza">⏰ Llegada tarde</option>
           <option value="ausencia">❌ Ausencia</option>
+          <option value="enfermedad">🤒 Enfermedad</option>
           <option value="cambio_turno">🔄 Cambio de turno</option>
           <option value="otro">📝 Otro</option>
         </select>
@@ -423,6 +432,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <button class="btn bs" onclick="closeOv('ovIncidencia')">Cancelar</button>
       <button class="btn bp" onclick="guardarIncidencia()">Enviar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Incidencia (desde grilla) -->
+<div class="overlay" id="ovIncDetalle">
+  <div class="modal" style="max-width:480px">
+    <button class="mc" onclick="closeOv('ovIncDetalle')">✕</button>
+    <h2 id="incDetTitle">Incidencia</h2>
+    <div id="incDetBody" style="margin-bottom:14px"></div>
+    <div class="ma" id="incDetActions"></div>
   </div>
 </div>
 
@@ -641,7 +660,7 @@ const CARGOS_POR_SECTOR={
 };
 
 let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null;
-let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null;
+let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null,INC_MAP={};
 let eEmpId=null,eUserId=null;
 
 // ── API ─────────────────────────────────────────
@@ -779,6 +798,16 @@ async function loadRoster(){
     const t=await api(`roster_turnos?semana_id=eq.${SEMANA_ID}&select=*`);
     (t||[]).forEach(t=>{TURNOS_MAP[`${t.empleado_id}_${t.dia}`]=t;});
   }
+  // Cargar incidencias del rango de la semana
+  INC_MAP={};
+  const dias7=diasDeSemana(SEMANA_ACTUAL);
+  const desde=dias7[0],hasta=dias7[6];
+  const incs=await api(`incidencias?fecha=gte.${desde}&fecha=lte.${hasta}&select=*&order=creado_en.desc`)||[];
+  // Indexar por empleado_fecha; al ser order=desc, la primera que entra es la más reciente
+  incs.forEach(inc=>{
+    const k=`${inc.empleado_id}_${inc.fecha}`;
+    if(!INC_MAP[k])INC_MAP[k]=inc;
+  });
   renderRosterTable(puedeEditar);
 }
 function renderRosterTable(puedeEditar){
@@ -805,13 +834,16 @@ function renderRosterTable(puedeEditar){
         const cls=`turno-cell${editable?'':' readonly'}${pasado?' pasado':''}`;
         const tip=pasado?' title="Día pasado - no editable"':'';
         const cmt=t?.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:'';
-        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-off">OFF</span>${cmt}</div></td>`;
+        // Punto de incidencia (más reciente del día)
+        const inc=INC_MAP[`${emp.id}_${dia}`];
+        const dot=inc?`<span class="inc-dot ${inc.estado}" title="Incidencia: ${inc.estado}" onclick="event.stopPropagation();verIncidencia(${inc.id})"></span>`:'';
+        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-off">OFF</span>${cmt}</div></td>`;
         if(t&&t.es_flex){
           const horaTxt=t.hora_entrada?`<div class="turno-flex-hora">${t.hora_entrada.slice(0,5)}</div>`:'';
-          return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-flex">🔄 FLEX</span>${horaTxt}${cmt}</div></td>`;
+          return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-flex">🔄 FLEX</span>${horaTxt}${cmt}</div></td>`;
         }
-        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
-        return`<td><div class="${cls}" ${onclick}${tip}><span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
+        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
+        return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
     </tr>`).join('');
 }
@@ -939,7 +971,7 @@ window.loadIncidencias=async function(){
   const filtered=local?data.filter(i=>i.empleado?.local===local):data;
   const list=document.getElementById('incList');
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><p>Sin incidencias</p></div>`;return;}
-  const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
+  const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
   list.innerHTML=filtered.map(i=>`
     <div class="inc-card">
       <div class="inc-info">
@@ -962,6 +994,48 @@ window.resolverInc=async function(id,estado){
   await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
   toast(estado==='aprobado'?'✓ Aprobada':'✗ Rechazada');
   loadIncidencias();
+};
+
+// Ver incidencia desde la grilla del roster
+window.verIncidencia=async function(id){
+  // Buscar la incidencia en INC_MAP (puede no estar si fue creada después de cargar)
+  let inc=Object.values(INC_MAP).find(x=>x.id===id);
+  if(!inc){
+    const r=await api(`incidencias?id=eq.${id}&select=*`);
+    if(!r||!r.length){toast('No se encontró la incidencia');return;}
+    inc=r[0];
+  }
+  const emp=EMPLEADOS.find(e=>e.id===inc.empleado_id);
+  const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
+  const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Aprobada',rechazado:'✗ Rechazada'};
+  document.getElementById('incDetTitle').textContent=`Incidencia — ${emp?.apellido||emp?.nombre||''}`;
+  document.getElementById('incDetBody').innerHTML=`
+    <div style="background:var(--cream);border-radius:10px;padding:14px;font-size:13px;line-height:1.6">
+      <div><strong>Estado:</strong> ${ESTADOS[inc.estado]||inc.estado}</div>
+      <div><strong>Tipo:</strong> ${TIPOS[inc.tipo]||inc.tipo}</div>
+      <div><strong>Fecha:</strong> ${fmt(inc.fecha)}</div>
+      ${inc.descripcion?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--sand-l)"><strong>Descripción:</strong><br>${inc.descripcion}</div>`:''}
+    </div>`;
+  // Mostrar acciones según permisos y estado
+  const actions=document.getElementById('incDetActions');
+  const puedeResolver=esMaster()&&inc.estado==='pendiente';
+  actions.innerHTML=`
+    <button class="btn bs" onclick="closeOv('ovIncDetalle')">Cerrar</button>
+    ${puedeResolver?`
+      <button class="btn bd" onclick="resolverIncDesdeGrilla(${inc.id},'rechazado')">✗ Rechazar</button>
+      <button class="btn bp" onclick="resolverIncDesdeGrilla(${inc.id},'aprobado')">✓ Aprobar</button>
+    `:''}`;
+  openOv('ovIncDetalle');
+};
+
+window.resolverIncDesdeGrilla=async function(id,estado){
+  await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
+  // Actualizar el INC_MAP local
+  const inc=Object.values(INC_MAP).find(x=>x.id===id);
+  if(inc){inc.estado=estado;inc.revisado_por=CU.id;inc.revisado_en=new Date().toISOString();}
+  toast(estado==='aprobado'?'✓ Aprobada':'✗ Rechazada');
+  closeOv('ovIncDetalle');
+  renderRosterTable(puedeEditarLocal(LOCAL_ACTUAL));
 };
 
 // ── COLABORADORES ─────────────────────────────────
