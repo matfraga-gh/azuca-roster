@@ -250,6 +250,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     </div>
   </div>
   <div class="content">
+    <div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:16px" id="miSemBienvenido"></div>
     <div class="week-nav">
       <button class="week-btn" onclick="cambiarSemanaEmp(-1)">← Anterior</button>
       <div class="week-label" id="weekLabelEmp"></div>
@@ -276,7 +277,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         <option value="5-TRAPICHE">Trapiche</option>
         <option value="3-NIETO">Nieto</option>
         <option value="4-VIÑA COBOS">Viña Cobos</option>
-        <option value="1-AZUCA">Azuca Admin</option>
+        <option value="1-AZUCA">Azuca</option>
       </select>
       <select id="incFiltEstado" onchange="loadIncidencias()">
         <option value="">Todos los estados</option>
@@ -292,15 +293,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 <!-- EMPLEADOS (rrhh) -->
 <div id="vEmpleados" class="view">
   <div class="app-hdr">
-    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Empleados</div></div>
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Colaboradores</div></div>
     <div class="app-btns">
       <button class="abtn ao" onclick="openEmpModal()">+ Nuevo</button>
       <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
     </div>
   </div>
   <div class="content">
-    <div class="ptitle">Empleados</div>
-    <div class="psub">Listado del equipo AZUCA por local y sector</div>
+    <div class="ptitle">Colaboradores</div>
+    <div class="psub">Listado de colaboradores AZUCA</div>
     <div class="toolbar">
       <input type="text" id="empSearch" placeholder="Buscar..." oninput="renderEmpleados()">
       <select id="empFiltLocal" onchange="renderEmpleados()">
@@ -309,11 +310,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         <option value="5-TRAPICHE">Trapiche</option>
         <option value="3-NIETO">Nieto</option>
         <option value="4-VIÑA COBOS">Viña Cobos</option>
-        <option value="1-AZUCA">Azuca Admin</option>
+        <option value="1-AZUCA">Azuca</option>
       </select>
     </div>
     <div class="tw"><table class="tbl">
-      <thead><tr><th>Nombre</th><th>Local</th><th>Sector</th><th>Categoría</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Local principal</th><th>Sector</th><th>Cargo</th><th>Teléfono</th><th></th></tr></thead>
       <tbody id="empTbody"></tbody>
     </table></div>
   </div>
@@ -333,9 +334,44 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <div class="off-btn" id="btnOff" onclick="setTurnoMode('off')">☀️ OFF</div>
     </div>
     <div id="turnoHoraWrap">
-      <div class="fg" style="margin-bottom:12px">
-        <label>Hora de entrada</label>
-        <input type="time" id="turnoHora">
+      <div class="frow" style="margin-bottom:12px">
+        <div class="fg"><label>Hora de entrada</label>
+          <select id="turnoHoraH" style="font-size:20px;font-weight:700;text-align:center;padding:10px">
+            <option value="">--</option>
+            <option value="07">07</option>
+            <option value="08">08</option>
+            <option value="09">09</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+            <option value="19">19</option>
+            <option value="20">20</option>
+            <option value="21">21</option>
+            <option value="22">22</option>
+            <option value="23">23</option>
+            <option value="00">00</option>
+            <option value="01">01</option>
+            <option value="02">02</option>
+            <option value="03">03</option>
+            <option value="04">04</option>
+            <option value="05">05</option>
+            <option value="06">06</option>
+          </select>
+        </div>
+        <div class="fg"><label>Minutos</label>
+          <select id="turnoHoraM" style="font-size:20px;font-weight:700;text-align:center;padding:10px">
+            <option value="00">00</option>
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="fg full" style="margin-bottom:4px">
@@ -381,22 +417,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
 </div>
 
-<!-- Modal Empleado -->
+<!-- Modal Colaborador -->
 <div class="overlay" id="ovEmp">
   <div class="modal">
     <button class="mc" onclick="closeOv('ovEmp')">✕</button>
-    <h2 id="empModalTitle">Nuevo Empleado</h2>
+    <h2 id="empModalTitle">Nuevo Colaborador</h2>
     <div class="frow">
       <div class="fg full"><label>Nombre completo</label><input type="text" id="eNombre"></div>
     </div>
     <div class="frow">
-      <div class="fg"><label>Local</label>
+      <div class="fg"><label>Local principal</label>
         <select id="eLocal">
-          <option value="1-AZUCA">Azuca Admin</option>
+          <option value="1-AZUCA">Azuca</option>
           <option value="2-AZAFRAN">Azafrán</option>
           <option value="3-NIETO">Nieto</option>
           <option value="4-VIÑA COBOS">Viña Cobos</option>
           <option value="5-TRAPICHE">Trapiche</option>
+          <option value="VINOBIEN">Vinobien</option>
         </select>
       </div>
       <div class="fg"><label>Sector</label>
@@ -411,13 +448,68 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         </select>
       </div>
     </div>
-    <div class="fg full" style="margin-bottom:4px"><label>Categoría</label><input type="text" id="eCategoria" placeholder="Ej: Cocinero Senior, Camarero..."></div>
+    <div class="frow">
+      <div class="fg full"><label>Cargo</label>
+        <select id="eCategoria" onchange="toggleOtroCargo()">
+          <option value="">Seleccionar cargo...</option>
+          <optgroup label="— Cocina —">
+            <option value="CHEF EJECUTIVO">Chef Ejecutivo</option>
+            <option value="SOUS CHEF">Sous Chef</option>
+            <option value="LIDER DE COCINA">Líder de Cocina</option>
+            <option value="CAPITAN DE COCINA">Capitán de Cocina</option>
+            <option value="COCINERO SENIOR">Cocinero Senior</option>
+            <option value="COCINA">Cocinero</option>
+            <option value="BACHERO SENIOR">Bachero Senior</option>
+            <option value="BACHERO">Bachero</option>
+          </optgroup>
+          <optgroup label="— Sala —">
+            <option value="LIDER DE SALA">Líder de Sala</option>
+            <option value="CAMARERO SENIOR">Camarero Senior</option>
+            <option value="CAMARERO">Camarero</option>
+            <option value="SALA">Camarero Junior</option>
+            <option value="GESTION DE RESERVAS">Gestión de Reservas</option>
+          </optgroup>
+          <optgroup label="— Cava —">
+            <option value="SOMM SENIOR">Sommelier Senior</option>
+            <option value="SOMM">Sommelier</option>
+            <option value="JEFE DE BEBIDAS">Jefe de Bebidas</option>
+          </optgroup>
+          <optgroup label="— Ordenanza —">
+            <option value="JEFE DE ORDENANZA">Jefe de Ordenanza</option>
+            <option value="ORDENANZA SENIOR">Ordenanza Senior</option>
+            <option value="ORDENANZA">Ordenanza</option>
+          </optgroup>
+          <optgroup label="— Administración —">
+            <option value="GERENTE GENERAL">Gerente General</option>
+            <option value="GERENTE DE SERVICIO">Gerente de Servicio</option>
+            <option value="JEFE DE COMPRAS">Jefe de Compras</option>
+            <option value="TESORERO">Tesorero</option>
+            <option value="ADMINISTRATIVO">Administrativo</option>
+            <option value="ADMINISTRATIVO PARTIME">Administrativo Part-time</option>
+            <option value="LOGISTICA">Logística</option>
+          </optgroup>
+          <optgroup label="— Otros —">
+            <option value="SEGURIDAD">Seguridad</option>
+            <option value="EVENTUAL">Eventual</option>
+            <option value="OTRO">Otro...</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div class="fg full" id="otroCargoWrap" style="display:none;margin-bottom:8px">
+      <label>Especificar cargo</label>
+      <input type="text" id="eOtroCargo" placeholder="Ingresá el cargo">
+    </div>
+    <div class="frow">
+      <div class="fg"><label>Tel. de contacto</label><input type="tel" id="eTel" placeholder="+54 9 261 xxx xxxx"></div>
+      <div class="fg"><label>Fecha de nacimiento</label><input type="date" id="eFechaNac"></div>
+    </div>
     <div class="ma">
       <button class="btn bs" onclick="closeOv('ovEmp')">Cancelar</button>
       <button class="btn bp" onclick="guardarEmpleado()">Guardar</button>
     </div>
   </div>
-</div>
+</div>/div>
 
 <div class="toast" id="toast"></div>
 
@@ -426,7 +518,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 const SU='https://vbnucvzjlcghrmqxjldp.supabase.co';
 const SK='sb_publishable_VGfoUAU6e0zlXzkY2y8iBw_lYeOKU7K';
 
-const LOCAL_LABELS={'1-AZUCA':'Azuca Admin','2-AZAFRAN':'Azafrán','3-NIETO':'Nieto Senetiner','4-VIÑA COBOS':'Viña Cobos','5-TRAPICHE':'Espacio Trapiche'};
+const LOCAL_LABELS={'1-AZUCA':'Azuca','2-AZAFRAN':'Azafrán','3-NIETO':'Nieto Senetiner','4-VIÑA COBOS':'Viña Cobos','5-TRAPICHE':'Espacio Trapiche','VINOBIEN':'Vinobien'};
 const DIAS=['Lun.','Mar.','Mié.','Jue.','Vie.','Sáb.','Dom.'];
 
 let CU=null, EMPLEADOS=[], SEMANA_ACTUAL=null, LOCAL_ACTUAL=null;
@@ -480,7 +572,7 @@ function buildDash(){
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
   if(esRRHH||esEditor){
     cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
-    cards.push({i:'👥',t:'Empleados',d:'Gestión del personal',a:"showView('vEmpleados')"});
+    cards.push({i:'👥',t:'Colaboradores',d:'Gestión de colaboradores',a:"showView('vEmpleados')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -560,7 +652,7 @@ function renderRosterTable(esEditor){
 
   // Head
   document.getElementById('rosterHead').innerHTML=`<tr>
-    <th class="emp-col">Empleado</th>
+    <th class="emp-col">Colaborador</th>
     ${dias.map((d,i)=>`<th>${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}</small></th>`).join('')}
   </tr>`;
 
@@ -613,7 +705,7 @@ window.editTurno=function(empId,dia){
   document.getElementById('turnoTitle').textContent=`${emp?.nombre||''} — ${fmt(dia)}`;
   document.getElementById('turnoEmpId').value=empId;
   document.getElementById('turnoDia').value=dia;
-  document.getElementById('turnoHora').value=t?.hora_entrada?.slice(0,5)||'';
+  const he=t?.hora_entrada?.slice(0,5)||''; if(he){document.getElementById('turnoHoraH').value=he.split(':')[0];document.getElementById('turnoHoraM').value=he.split(':')[1]||'00';}else{document.getElementById('turnoHoraH').value='';document.getElementById('turnoHoraM').value='00';}
   document.getElementById('turnoComment').value=t?.comentario||'';
   setTurnoMode(t?.es_off?'off':'work');
   openOv('ovTurno');
@@ -629,7 +721,7 @@ window.guardarTurno=async function(){
   const empId=parseInt(document.getElementById('turnoEmpId').value);
   const dia=document.getElementById('turnoDia').value;
   const esOff=document.getElementById('btnOff').classList.contains('active-off');
-  const hora=document.getElementById('turnoHora').value;
+  const h=document.getElementById('turnoHoraH').value;const m=document.getElementById('turnoHoraM').value;const hora=h?(h+':'+m):'';
   const comment=document.getElementById('turnoComment').value.trim();
 
   // Crear semana si no existe
@@ -671,6 +763,8 @@ window.borrarTurno=async function(){
 
 // ── MI SEMANA ─────────────────────────────────────────────
 async function initMiSemana(){
+  const bEl=document.getElementById('miSemBienvenido');
+  if(bEl&&CU) bEl.textContent='Bienvenido/a, '+CU.nombre.split(' ').slice(-1)[0]+'!';
   if(!SEMANA_EMP) SEMANA_EMP=getLunes(new Date().toISOString().split('T')[0]);
   // Buscar empleado por nombre del usuario
   const emps=await api(`empleados?nombre=ilike.*${encodeURIComponent(CU.nombre.split(' ')[0])}*&select=*`);
@@ -799,23 +893,73 @@ function renderEmpleados(){
     <td>${LOCAL_LABELS[e.local]||e.local||'—'}</td>
     <td>${e.sector||'—'}</td>
     <td>${e.categoria||'—'}</td>
-    <td><button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button></td>
+    <td>${e.telefono||'—'}</td>
+    <td style='display:flex;gap:4px'><button class='abtn ao' style='padding:4px 8px;font-size:11px' onclick='editEmp(${e.id})'>✏️</button><button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button></td>
   </tr>`).join('');
 }
 window.renderEmpleados=renderEmpleados;
 
-function openEmpModal(){eEmpId=null;document.getElementById('empModalTitle').textContent='Nuevo Empleado';['eNombre','eCategoria'].forEach(id=>document.getElementById(id).value='');openOv('ovEmp');}
+function toggleOtroCargo(){
+  const v=document.getElementById('eCategoria').value;
+  document.getElementById('otroCargoWrap').style.display=v==='OTRO'?'block':'none';
+}
+window.toggleOtroCargo=toggleOtroCargo;
+
+function openEmpModal(){
+  eEmpId=null;
+  document.getElementById('empModalTitle').textContent='Nuevo Colaborador';
+  ['eNombre','eOtroCargo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('eCategoria').value='';
+  document.getElementById('eTel').value='';
+  document.getElementById('eFechaNac').value='';
+  document.getElementById('otroCargoWrap').style.display='none';
+  openOv('ovEmp');
+}
 window.openEmpModal=openEmpModal;
+
+function editEmp(id){
+  const e=EMPLEADOS.find(x=>x.id===id);if(!e)return;
+  eEmpId=id;
+  document.getElementById('empModalTitle').textContent='Editar Colaborador';
+  document.getElementById('eNombre').value=e.nombre||'';
+  document.getElementById('eLocal').value=e.local||'1-AZUCA';
+  document.getElementById('eSector').value=e.sector||'COCINA';
+  // Set cargo
+  const sel=document.getElementById('eCategoria');
+  const opts=[...sel.options].map(o=>o.value);
+  if(opts.includes(e.categoria)){sel.value=e.categoria;document.getElementById('otroCargoWrap').style.display='none';}
+  else{sel.value='OTRO';document.getElementById('otroCargoWrap').style.display='block';document.getElementById('eOtroCargo').value=e.categoria||'';}
+  document.getElementById('eTel').value=e.telefono||'';
+  document.getElementById('eFechaNac').value=e.fecha_nac||'';
+  openOv('ovEmp');
+}
+window.editEmp=editEmp;
 
 window.guardarEmpleado=async function(){
   const nombre=document.getElementById('eNombre').value.trim();if(!nombre){toast('Ingresá un nombre');return;}
-  const data={nombre,local:document.getElementById('eLocal').value,sector:document.getElementById('eSector').value,categoria:document.getElementById('eCategoria').value.trim(),activo:true};
-  await api('empleados','POST',data);
-  closeOv('ovEmp');toast('Empleado creado ✓');await loadEmpleados();
+  const catSel=document.getElementById('eCategoria').value;
+  const cat=catSel==='OTRO'?document.getElementById('eOtroCargo').value.trim():catSel;
+  const data={
+    nombre,
+    local:document.getElementById('eLocal').value,
+    sector:document.getElementById('eSector').value,
+    categoria:cat,
+    telefono:document.getElementById('eTel').value.trim()||null,
+    fecha_nac:document.getElementById('eFechaNac').value||null,
+    activo:true
+  };
+  if(eEmpId){
+    await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);
+    toast('Colaborador actualizado ✓');
+  } else {
+    await api('empleados','POST',data);
+    toast('Colaborador creado ✓');
+  }
+  closeOv('ovEmp');await loadEmpleados();
 };
 
 window.toggleActivo=async function(id,activo){
-  if(!confirm(activo?'¿Dar de baja este empleado?':'¿Reactivar este empleado?'))return;
+  if(!confirm(activo?'¿Dar de baja este colaborador?':'¿Reactivar este colaborador?'))return;
   await api(`empleados?id=eq.${id}`,'PATCH',{activo:!activo});
   toast(activo?'Empleado dado de baja':'Empleado reactivado');
   await loadEmpleados();
