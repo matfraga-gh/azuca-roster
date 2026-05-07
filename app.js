@@ -13,7 +13,7 @@ const CARGOS_POR_SECTOR={
   'GERENCIA':['GERENTE GENERAL','GERENTE DE SERVICIO','GERENTE DE GASTRONOMIA','GERENTE DE ADMINISTRACION','GERENTE DE MARKETING','GERENTE DE AREA','OTRO'],
 };
 
-let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null;
+let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null,LOCALES_VISIBLES=[];
 let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null,INC_MAP={};
 let eEmpId=null,eUserId=null;
 
@@ -159,23 +159,26 @@ async function initRoster(){
   if(!SEMANA_ACTUAL)SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
   await loadEmpleados(false);
   // Only show locales this editor can see
-  const locales=Object.keys(LOCAL_LABELS).filter(l=>esMaster()||puedeEditarLocal(l));
-  if(!LOCAL_ACTUAL||!locales.includes(LOCAL_ACTUAL))LOCAL_ACTUAL=locales[0];
-  buildLocalTabs(locales);
+  LOCALES_VISIBLES=Object.keys(LOCAL_LABELS).filter(l=>esMaster()||puedeEditarLocal(l));
+  if(!LOCAL_ACTUAL||!LOCALES_VISIBLES.includes(LOCAL_ACTUAL))LOCAL_ACTUAL=LOCALES_VISIBLES[0];
+  buildLocalTabs();
   await loadRoster();
 }
-function buildLocalTabs(locales){
-  document.getElementById('localTabs').innerHTML=(locales||Object.keys(LOCAL_LABELS)).map(l=>`
-    <div class="local-tab ${l===LOCAL_ACTUAL?'active':''}" onclick="cambiarLocal('${l}')">${LOCAL_LABELS[l]}</div>`).join('');
+function buildLocalTabs(){
+  const locales=LOCALES_VISIBLES&&LOCALES_VISIBLES.length?LOCALES_VISIBLES:Object.keys(LOCAL_LABELS);
+  document.getElementById('localTabs').innerHTML=locales.map(l=>`
+    <div class="local-tab ${l===LOCAL_ACTUAL?'active':''}" onclick="cambiarLocal('${l}')">${esc(LOCAL_LABELS[l])}</div>`).join('');
 }
-window.cambiarLocal=async function(l){LOCAL_ACTUAL=l;buildLocalTabs();await loadRoster();};
+window.cambiarLocal=async function(l){
+  if(!puedeEditarLocal(l)){toast('Sin permiso para este local');return;}
+  LOCAL_ACTUAL=l;buildLocalTabs();await loadRoster();
+};
 function cambiarSemana(n){SEMANA_ACTUAL=addDays(SEMANA_ACTUAL,n*7);loadRoster();}
 window.cambiarSemana=cambiarSemana;
 
 async function loadRoster(){
   document.getElementById('weekLabel').textContent=formatSemana(SEMANA_ACTUAL);
   const puedeEditar=puedeEditarLocal(LOCAL_ACTUAL);
-  document.getElementById('btnPublicar').style.display=puedeEditar?'':'none';
   const semanas=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
   if(semanas&&semanas.length){SEMANA_OBJ=semanas[0];SEMANA_ID=semanas[0].id;}
   else{SEMANA_OBJ=null;SEMANA_ID=null;}
@@ -242,7 +245,6 @@ window.guardarCommentGeneral=async function(){
   if(!SEMANA_ID){const r=await apiUpsert('roster_semanas',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id},['local','fecha_lunes']);if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}}
   else await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
 };
-window.publicarRoster=function(){toast('✓ Roster publicado — el equipo ya puede ver sus turnos');};
 
 // ── TURNO ─────────────────────────────────────────
 window.editTurno=function(empId,dia){
@@ -313,13 +315,17 @@ async function initMiSemana(){
 async function renderMiSemana(emp){
   document.getElementById('weekLabelEmp').textContent=formatSemana(SEMANA_EMP);
   const dias=diasDeSemana(SEMANA_EMP);
-  let turnos={},comentGeneral='';
+  let turnos={},comentGeneral='',incPorDia={};
   if(emp){
     const s=await api(`roster_semanas?local=eq.${encodeURIComponent(emp.local)}&fecha_lunes=eq.${SEMANA_EMP}&select=*`);
     if(s&&s.length){comentGeneral=s[0].comentario_general||'';
       const tt=await api(`roster_turnos?semana_id=eq.${s[0].id}&empleado_id=eq.${emp.id}&select=*`);
       (tt||[]).forEach(t=>{turnos[t.dia]=t;});
     }
+    // Cargar incidencias del propio empleado
+    const desde=dias[0],hasta=dias[6];
+    const incs=await api(`incidencias?empleado_id=eq.${emp.id}&fecha=gte.${desde}&fecha=lte.${hasta}&select=*&order=creado_en.desc`)||[];
+    incs.forEach(inc=>{if(!incPorDia[inc.fecha])incPorDia[inc.fecha]=inc;});
   }
   document.getElementById('miSemanaGrid').innerHTML=dias.map((dia,i)=>{
     const t=turnos[dia];const esOff=t?.es_off;const esFlex=t?.es_flex;
@@ -327,7 +333,10 @@ async function renderMiSemana(emp){
     if(esOff)txt='OFF';
     else if(esFlex)txt=t?.hora_entrada?`🔄 FLEX ${t.hora_entrada.slice(0,5)}`:'🔄 FLEX';
     else txt=t?.hora_entrada?t.hora_entrada.slice(0,5):'—';
-    return`<div class="dia-card ${esOff?'off':''}">
+    const inc=incPorDia[dia];
+    const dot=inc?`<span class="inc-dot ${inc.estado}" title="Tu incidencia (${inc.estado==='pendiente'?'pendiente':'procesada'})" onclick="verIncidencia(${inc.id})"></span>`:'';
+    return`<div class="dia-card ${esOff?'off':''}" style="position:relative">
+      ${dot}
       <div class="dia-nombre">${DIAS[i]}</div>
       <div class="dia-fecha">${fmt(dia)}</div>
       <div class="dia-hora">${txt}</div>
@@ -363,7 +372,10 @@ window.loadIncidencias=async function(){
   if(estado==='pendiente')q+=`&estado=eq.pendiente`;
   else if(estado==='procesada')q+=`&estado=in.(aprobado,rechazado)`;
   const data=await api(q)||[];
-  const filtered=local?data.filter(i=>i.empleado?.local===local):data;
+  // Filtrar por locales que el editor puede ver
+  let visibles=data.filter(i=>puedeEditarLocal(i.empleado?.local));
+  // Filtro adicional por dropdown de local
+  const filtered=local?visibles.filter(i=>i.empleado?.local===local):visibles;
   const list=document.getElementById('incList');
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><p>Sin incidencias</p></div>`;return;}
   const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
@@ -377,10 +389,10 @@ window.loadIncidencias=async function(){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
         <span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${i.estado==='pendiente'?'⏳ Pendiente':'✓ Procesada'}</span>
-        ${i.estado==='pendiente'&&esMaster()?`
+        ${i.estado==='pendiente'&&puedeEditarLocal(i.empleado?.local)?`
           <div style="display:flex;gap:6px">
             <button class="btn bp" style="padding:5px 10px;font-size:11px" title="Aprobar" onclick="resolverInc(${i.id},'aprobado')">✓</button>
-            <button class="btn bs" style="padding:5px 10px;font-size:11px" title="Rechazar" onclick="resolverInc(${i.id},'rechazado')">✗</button>
+            <button class="btn bx" style="padding:5px 10px;font-size:11px" title="Rechazar" onclick="resolverInc(${i.id},'rechazado')">✗</button>
           </div>`:''}
       </div>
     </div>`).join('');
@@ -413,11 +425,12 @@ window.verIncidencia=async function(id){
     </div>`;
   // Mostrar acciones según permisos y estado
   const actions=document.getElementById('incDetActions');
-  const puedeResolver=esMaster()&&inc.estado==='pendiente';
+  const empLocal=EMPLEADOS.find(e=>e.id===inc.empleado_id)?.local;
+  const puedeResolver=puedeEditarLocal(empLocal)&&inc.estado==='pendiente';
   actions.innerHTML=`
     <button class="btn bs" onclick="closeOv('ovIncDetalle')">Cerrar</button>
     ${puedeResolver?`
-      <button class="btn bd" onclick="resolverIncDesdeGrilla(${inc.id},'rechazado')">✗ Rechazar</button>
+      <button class="btn bx" onclick="resolverIncDesdeGrilla(${inc.id},'rechazado')">✗ Rechazar</button>
       <button class="btn bp" onclick="resolverIncDesdeGrilla(${inc.id},'aprobado')">✓ Aprobar</button>
     `:''}`;
   openOv('ovIncDetalle');
@@ -518,14 +531,33 @@ window.guardarEmpleado=async function(){
     telefono:document.getElementById('eTel').value.trim()||null,
     fecha_nac:document.getElementById('eFechaNac').value||null,activo:true};
   let empId=eEmpId;
-  if(eEmpId){await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);toast('✓ Colaborador actualizado');}
-  else{const r=await api('empleados','POST',data);if(r&&r.length)empId=r[0].id;toast('✓ Colaborador creado');}
+  if(eEmpId){
+    const r=await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);
+    if(!r){toast('Error al actualizar');return;}
+    toast('✓ Colaborador actualizado');
+  }
+  else{
+    const r=await api('empleados','POST',data);
+    if(!r||!r.length){toast('Error al crear colaborador');return;}
+    empId=r[0].id;
+    toast('✓ Colaborador creado');
+  }
   // Auto-create user
   if(document.getElementById('eCrearUser').checked&&!eEmpId&&empId){
-    const u=(apellido.slice(0,3)+nombreP.slice(0,3)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+    const baseUser=norm(apellido).slice(0,3)+norm(nombreP).slice(0,3);
+    if(baseUser.length<2){toast('Colaborador creado pero no se pudo generar usuario (apellido/nombre muy corto)');closeOv('ovEmp');await loadEmpleados();return;}
+    // Buscar nombre disponible: u, u1, u2...
+    let userFinal=baseUser;
+    for(let i=1;i<20;i++){
+      const existe=await api(`roster_usuarios?usuario=eq.${userFinal}&select=id`);
+      if(!existe||!existe.length)break;
+      userFinal=baseUser+i;
+    }
     const h=await sha256('azuca26');
-    await api('roster_usuarios','POST',{usuario:u,password_hash:h,nombre:apellido+(nombreP?' '+nombreP:''),perfil:'usuario',empleado_id:empId,activo:true});
-    toast(`✓ Usuario creado: ${u} / azuca26`);
+    const r=await api('roster_usuarios','POST',{usuario:userFinal,password_hash:h,nombre,perfil:'usuario',empleado_id:empId,activo:true});
+    if(r&&r.length){toast(`✓ Usuario creado: ${userFinal} / azuca26`,5000);}
+    else{toast('Colaborador creado pero falló la creación del usuario',4000);}
   }
   closeOv('ovEmp');await loadEmpleados();
 };
@@ -655,17 +687,52 @@ function renderTurnos(){
 }
 window.renderTurnos=renderTurnos;
 
+// Genera los 7 días con dos selects (hora + min) y checkbox Flex
+function buildTeDiasGrid(valoresPrev){
+  const DIA_LABEL={lun:'LUN',mar:'MAR',mie:'MIÉ',jue:'JUE',vie:'VIE',sab:'SÁB',dom:'DOM'};
+  const horasOpts=['']+''.padEnd(0,''); // dummy
+  let horasHtml='<option value="">--</option>';
+  for(let h=0;h<24;h++){const hh=String(h).padStart(2,'0');horasHtml+=`<option value="${hh}">${hh}</option>`;}
+  const minsHtml=['00','15','30','45'].map(m=>`<option value="${m}">${m}</option>`).join('');
+  const grid=document.getElementById('teDiasGrid');
+  grid.innerHTML=DIAS_TE.map(d=>{
+    const cap=d.charAt(0).toUpperCase()+d.slice(1);
+    const v=valoresPrev?.[d]||'';
+    const h=v?v.slice(0,2):'';
+    const m=v?(v.slice(3,5)||'00'):'00';
+    const flex=valoresPrev?.[d+'_flex']?'checked':'';
+    const isDom=d==='dom';
+    const labelColor=isDom?'var(--off-text)':'var(--gray)';
+    const bg=isDom?'background:var(--off-bg);':'';
+    const border=isDom?'border:1px solid #F0E060;':'border:1px solid var(--sand);';
+    return `<div>
+      <div style="font-size:11px;color:${labelColor};margin-bottom:4px;font-weight:600">${DIA_LABEL[d]}</div>
+      <div style="display:flex;gap:2px;justify-content:center">
+        <select id="te${cap}H" style="${bg}${border}border-radius:6px;padding:5px 2px;font-size:12px;font-weight:600;text-align:center;box-sizing:border-box">${horasHtml.replace(`value="${h}"`,`value="${h}" selected`)}</select>
+        <span style="align-self:center;font-weight:700">:</span>
+        <select id="te${cap}M" style="${bg}${border}border-radius:6px;padding:5px 2px;font-size:12px;font-weight:600;text-align:center;box-sizing:border-box">${minsHtml.replace(`value="${m}"`,`value="${m}" selected`)}</select>
+      </div>
+      <label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer">
+        <input type="checkbox" id="te${cap}Flex" style="width:auto;margin:0" ${flex}>🔄 Flex
+      </label>
+    </div>`;
+  }).join('');
+}
+
+// Lee la hora completa (HH:MM) de los 2 selects de un día. Devuelve null si está vacío.
+function getTeHora(d){
+  const cap=d.charAt(0).toUpperCase()+d.slice(1);
+  const h=document.getElementById('te'+cap+'H')?.value;
+  const m=document.getElementById('te'+cap+'M')?.value||'00';
+  return h?(h+':'+m):null;
+}
+
 function openTurnoEstModal(){
   teId=null;
   document.getElementById('teModalTitle').textContent='Nuevo Turno Estándar';
   document.getElementById('teNombre').value='';
   document.getElementById('teLocal').value='TODOS';
-  DIAS_TE.forEach(d=>{
-    const cap=d.charAt(0).toUpperCase()+d.slice(1);
-    document.getElementById('te'+cap).value='';
-    const elFlex=document.getElementById('te'+cap+'Flex');
-    if(elFlex)elFlex.checked=false;
-  });
+  buildTeDiasGrid(null);
   document.getElementById('btnBorrarTE').style.display='none';
   openOv('ovTurnoEst');
 }
@@ -677,13 +744,7 @@ function editTurnoEst(id){
   document.getElementById('teModalTitle').textContent='Editar Turno Estándar';
   document.getElementById('teNombre').value=t.nombre||'';
   document.getElementById('teLocal').value=t.local||'TODOS';
-  DIAS_TE.forEach(d=>{
-    const cap=d.charAt(0).toUpperCase()+d.slice(1);
-    const el=document.getElementById('te'+cap);
-    if(el)el.value=t[d]||'';
-    const elFlex=document.getElementById('te'+cap+'Flex');
-    if(elFlex)elFlex.checked=!!t[d+'_flex'];
-  });
+  buildTeDiasGrid(t);
   document.getElementById('btnBorrarTE').style.display='';
   openOv('ovTurnoEst');
 }
@@ -694,13 +755,13 @@ window.guardarTurnoEst=async function(){
   if(!nombre){toast('Ingresá un nombre');return;}
   const data={
     nombre,local:document.getElementById('teLocal').value,
-    lun:document.getElementById('teLun').value||null,
-    mar:document.getElementById('teMar').value||null,
-    mie:document.getElementById('teMie').value||null,
-    jue:document.getElementById('teJue').value||null,
-    vie:document.getElementById('teVie').value||null,
-    sab:document.getElementById('teSab').value||null,
-    dom:document.getElementById('teDom').value||null,
+    lun:getTeHora('lun'),
+    mar:getTeHora('mar'),
+    mie:getTeHora('mie'),
+    jue:getTeHora('jue'),
+    vie:getTeHora('vie'),
+    sab:getTeHora('sab'),
+    dom:getTeHora('dom'),
     lun_flex:document.getElementById('teLunFlex').checked,
     mar_flex:document.getElementById('teMarFlex').checked,
     mie_flex:document.getElementById('teMieFlex').checked,

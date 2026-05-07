@@ -41,7 +41,6 @@
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Roster</div></div>
     <div class="app-btns">
-      <button class="abtn ag" id="btnPublicar" onclick="publicarRoster()" style="display:none">✓ Publicar</button>
       <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
     </div>
   </div>
@@ -412,15 +411,7 @@
     </div>
     <div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:10px">Hora por día (vacío y sin Flex = OFF)</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center">
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">LUN</div><input type="time" id="teLun" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teLunFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">MAR</div><input type="time" id="teMar" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teMarFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">MIÉ</div><input type="time" id="teMie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teMieFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">JUE</div><input type="time" id="teJue" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teJueFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">VIE</div><input type="time" id="teVie" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teVieFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--gray);margin-bottom:4px;font-weight:600">SÁB</div><input type="time" id="teSab" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid var(--sand);border-radius:6px;text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teSabFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-        <div><div style="font-size:11px;color:var(--off-text);margin-bottom:4px;font-weight:600">DOM</div><input type="time" id="teDom" style="width:100%;padding:6px 4px;font-size:12px;border:1px solid #F0E060;border-radius:6px;background:var(--off-bg);text-align:center;box-sizing:border-box"><label style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#5B3A8E;margin-top:4px;cursor:pointer"><input type="checkbox" id="teDomFlex" style="width:auto;margin:0">🔄 Flex</label></div>
-      </div>
+      <div id="teDiasGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center"></div>
     </div>
     <div class="ma">
       <button class="btn bs" onclick="closeOv('ovTurnoEst')">Cancelar</button>
