@@ -423,7 +423,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     <button class="mc" onclick="closeOv('ovEmp')">✕</button>
     <h2 id="empModalTitle">Nuevo Colaborador</h2>
     <div class="frow">
-      <div class="fg full"><label>Nombre completo</label><input type="text" id="eNombre"></div>
+      <div class="fg"><label>Apellido/s</label><input type="text" id="eApellido" placeholder="Ej: García López"></div>
+      <div class="fg"><label>Nombre/s</label><input type="text" id="eNombreP" placeholder="Ej: María José"></div>
     </div>
     <div class="frow">
       <div class="fg"><label>Local principal</label>
@@ -437,7 +438,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         </select>
       </div>
       <div class="fg"><label>Sector</label>
-        <select id="eSector">
+        <select id="eSector" onchange="actualizarCargos()">
           <option value="COCINA">Cocina</option>
           <option value="SALA">Sala</option>
           <option value="CAVA">Cava</option>
@@ -452,47 +453,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <div class="fg full"><label>Cargo</label>
         <select id="eCategoria" onchange="toggleOtroCargo()">
           <option value="">Seleccionar cargo...</option>
-          <optgroup label="— Cocina —">
-            <option value="CHEF EJECUTIVO">Chef Ejecutivo</option>
-            <option value="SOUS CHEF">Sous Chef</option>
-            <option value="LIDER DE COCINA">Líder de Cocina</option>
-            <option value="CAPITAN DE COCINA">Capitán de Cocina</option>
-            <option value="COCINERO SENIOR">Cocinero Senior</option>
-            <option value="COCINA">Cocinero</option>
-            <option value="BACHERO SENIOR">Bachero Senior</option>
-            <option value="BACHERO">Bachero</option>
-          </optgroup>
-          <optgroup label="— Sala —">
-            <option value="LIDER DE SALA">Líder de Sala</option>
-            <option value="CAMARERO SENIOR">Camarero Senior</option>
-            <option value="CAMARERO">Camarero</option>
-            <option value="SALA">Camarero Junior</option>
-            <option value="GESTION DE RESERVAS">Gestión de Reservas</option>
-          </optgroup>
-          <optgroup label="— Cava —">
-            <option value="SOMM SENIOR">Sommelier Senior</option>
-            <option value="SOMM">Sommelier</option>
-            <option value="JEFE DE BEBIDAS">Jefe de Bebidas</option>
-          </optgroup>
-          <optgroup label="— Ordenanza —">
-            <option value="JEFE DE ORDENANZA">Jefe de Ordenanza</option>
-            <option value="ORDENANZA SENIOR">Ordenanza Senior</option>
-            <option value="ORDENANZA">Ordenanza</option>
-          </optgroup>
-          <optgroup label="— Administración —">
-            <option value="GERENTE GENERAL">Gerente General</option>
-            <option value="GERENTE DE SERVICIO">Gerente de Servicio</option>
-            <option value="JEFE DE COMPRAS">Jefe de Compras</option>
-            <option value="TESORERO">Tesorero</option>
-            <option value="ADMINISTRATIVO">Administrativo</option>
-            <option value="ADMINISTRATIVO PARTIME">Administrativo Part-time</option>
-            <option value="LOGISTICA">Logística</option>
-          </optgroup>
-          <optgroup label="— Otros —">
-            <option value="SEGURIDAD">Seguridad</option>
-            <option value="EVENTUAL">Eventual</option>
-            <option value="OTRO">Otro...</option>
-          </optgroup>
         </select>
       </div>
     </div>
@@ -889,7 +849,7 @@ function renderEmpleados(){
   const tb=document.getElementById('empTbody');
   if(!f.length){tb.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin empleados</td></tr>`;return;}
   tb.innerHTML=f.map(e=>`<tr>
-    <td><strong>${e.nombre}</strong></td>
+    <td><strong>${e.apellido||e.nombre}</strong>${e.nombre_p?`<br><small style='color:var(--gray)'>${e.nombre_p}</small>`:''}</td>
     <td>${LOCAL_LABELS[e.local]||e.local||'—'}</td>
     <td>${e.sector||'—'}</td>
     <td>${e.categoria||'—'}</td>
@@ -898,6 +858,47 @@ function renderEmpleados(){
   </tr>`).join('');
 }
 window.renderEmpleados=renderEmpleados;
+
+const CARGOS_POR_SECTOR={
+  'COCINA':[
+    'CHEF EJECUTIVO','SOUS CHEF','ASESOR SOUS CHEF','LIDER DE COCINA','CAPITAN DE COCINA',
+    'COCINERO SENIOR','COCINERO','BACHERO SENIOR','BACHERO','GERENTE DE AREA','EVENTUAL','OTRO'
+  ],
+  'SALA':[
+    'ENCARGADO DE LOCAL','JEFE DE OPERACIONES','LIDER SALA','LIDER DE SALA','CAPITAN DE CAMAREROS',
+    'JEFE SALA TRAP','CAMARERO SENIOR','CAMARERO','AYUDANTE DE SALA','GESTION DE RESERVAS',
+    'BARTENDER SOMMELIER','GERENTE DE AREA','EVENTUAL','OTRO'
+  ],
+  'CAVA':[
+    'JEFE DE BEBIDAS','SOMM SENIOR','SOMM','SOMMELIER','BARTENDER SOMMELIER',
+    'GERENTE DE AREA','EVENTUAL','OTRO'
+  ],
+  'ORDENANZA':[
+    'JEFE DE ORDENANZA','ORDENANZA SENIOR','ORDENANZA','GERENTE DE AREA','EVENTUAL','OTRO'
+  ],
+  'SEGURIDAD':[
+    'JEFE DE SEGURIDAD','SEGURIDAD','GERENTE DE AREA','EVENTUAL','OTRO'
+  ],
+  'ADMINISTRACION':[
+    'GERENTE DE ADMINISTRACION','JEFE DE COMPRAS','TESORERO','LOGISTICA',
+    'ADMINISTRATIVO','ADMINISTRATIVO PARTIME','GERENTE DE AREA','OTRO'
+  ],
+  'GERENCIA':[
+    'GERENTE GENERAL','GERENTE DE SERVICIO','GERENTE DE GASTRONOMIA',
+    'GERENTE DE ADMINISTRACION','GERENTE DE MARKETING','GERENTE DE AREA','OTRO'
+  ],
+};
+
+function actualizarCargos(){
+  const sector=document.getElementById('eSector').value;
+  const sel=document.getElementById('eCategoria');
+  const cur=sel.value;
+  const cargos=CARGOS_POR_SECTOR[sector]||['OTRO'];
+  sel.innerHTML='<option value="">Seleccionar cargo...</option>'+
+    cargos.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c.charAt(0)+c.slice(1).toLowerCase()}</option>`).join('');
+  toggleOtroCargo();
+}
+window.actualizarCargos=actualizarCargos;
 
 function toggleOtroCargo(){
   const v=document.getElementById('eCategoria').value;
@@ -909,10 +910,10 @@ function openEmpModal(){
   eEmpId=null;
   document.getElementById('empModalTitle').textContent='Nuevo Colaborador';
   ['eNombre','eOtroCargo'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('eCategoria').value='';
   document.getElementById('eTel').value='';
   document.getElementById('eFechaNac').value='';
   document.getElementById('otroCargoWrap').style.display='none';
+  actualizarCargos();
   openOv('ovEmp');
 }
 window.openEmpModal=openEmpModal;
@@ -921,9 +922,14 @@ function editEmp(id){
   const e=EMPLEADOS.find(x=>x.id===id);if(!e)return;
   eEmpId=id;
   document.getElementById('empModalTitle').textContent='Editar Colaborador';
-  document.getElementById('eNombre').value=e.nombre||'';
+  // Split nombre into apellido + nombre
+  const partes=(e.nombre||'').split(' ');
+  const mitad=Math.ceil(partes.length/2);
+  document.getElementById('eApellido').value=e.apellido||(partes.length>1?partes.slice(0,mitad).join(' '):'');
+  document.getElementById('eNombreP').value=e.nombre_p||(partes.length>1?partes.slice(mitad).join(' '):e.nombre||'');
   document.getElementById('eLocal').value=e.local||'1-AZUCA';
   document.getElementById('eSector').value=e.sector||'COCINA';
+  actualizarCargos();
   // Set cargo
   const sel=document.getElementById('eCategoria');
   const opts=[...sel.options].map(o=>o.value);
@@ -936,11 +942,16 @@ function editEmp(id){
 window.editEmp=editEmp;
 
 window.guardarEmpleado=async function(){
-  const nombre=document.getElementById('eNombre').value.trim();if(!nombre){toast('Ingresá un nombre');return;}
+  const apellido=document.getElementById('eApellido').value.trim();
+  const nombreP=document.getElementById('eNombreP').value.trim();
+  if(!apellido){toast('Ingresá el apellido');return;}
+  const nombre=apellido+(nombreP?' '+nombreP:'');
   const catSel=document.getElementById('eCategoria').value;
   const cat=catSel==='OTRO'?document.getElementById('eOtroCargo').value.trim():catSel;
   const data={
     nombre,
+    apellido,
+    nombre_p:nombreP||null,
     local:document.getElementById('eLocal').value,
     sector:document.getElementById('eSector').value,
     categoria:cat,
