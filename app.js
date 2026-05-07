@@ -488,7 +488,7 @@ function renderEmpleados(){
   const tb=document.getElementById('empTbody');
   if(!f.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores</td></tr>`;return;}
   tb.innerHTML=f.map(e=>`<tr>
-    <td><strong>${esc(e.apellido||e.nombre||'—')}</strong></td>
+    <td style="font-weight:600">${esc(e.apellido||e.nombre||'—')}</td>
     <td>${esc(e.nombre_p||'—')}</td>
     <td>${esc(LOCAL_LABELS[e.local]||e.local||'—')}</td>
     <td>${esc(e.sector||'—')}</td>
@@ -509,12 +509,16 @@ function openEmpModal(){
   document.getElementById('eLocal').value='2-AZAFRAN';
   document.getElementById('eSector').value='COCINA';
   document.getElementById('otroCargoWrap').style.display='none';
-  document.getElementById('eCrearUser').checked=true;
+  const cb=document.getElementById('eCrearUser');
+  cb.checked=true;cb.disabled=false;
+  const hint=document.getElementById('eCrearUserHint');
+  hint.textContent='Usuario: primeras 3 letras apellido + 3 letras nombre · Contraseña: azuca26';
+  hint.style.color='var(--gray)';
   actualizarCargos();
   openOv('ovEmp');
 }
 window.openEmpModal=openEmpModal;
-function editEmp(id){
+async function editEmp(id){
   const e=EMPLEADOS.find(x=>x.id===id);if(!e)return;
   eEmpId=id;
   document.getElementById('empModalTitle').textContent='Editar Colaborador';
@@ -529,7 +533,19 @@ function editEmp(id){
   else{sel.value='OTRO';document.getElementById('otroCargoWrap').style.display='block';document.getElementById('eOtroCargo').value=e.categoria||'';}
   document.getElementById('eTel').value=e.telefono||'';
   document.getElementById('eFechaNac').value=e.fecha_nac||'';
-  document.getElementById('eCrearUser').checked=false;
+  // Chequear si ya tiene usuario asociado
+  const yaTieneUser=await api(`roster_usuarios?empleado_id=eq.${id}&select=usuario`);
+  const cb=document.getElementById('eCrearUser');
+  const hint=document.getElementById('eCrearUserHint');
+  if(yaTieneUser&&yaTieneUser.length){
+    cb.checked=false;cb.disabled=true;
+    hint.textContent=`Ya tiene usuario: ${yaTieneUser[0].usuario}`;
+    hint.style.color='var(--green)';
+  }else{
+    cb.checked=false;cb.disabled=false;
+    hint.textContent='Usuario: primeras 3 letras apellido + 3 letras nombre · Contraseña: azuca26';
+    hint.style.color='var(--gray)';
+  }
   openOv('ovEmp');
 }
 window.editEmp=editEmp;
@@ -556,22 +572,28 @@ window.guardarEmpleado=async function(){
     empId=r[0].id;
     toast('✓ Colaborador creado');
   }
-  // Auto-create user
-  if(document.getElementById('eCrearUser').checked&&!eEmpId&&empId){
-    const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
-    const baseUser=norm(apellido).slice(0,3)+norm(nombreP).slice(0,3);
-    if(baseUser.length<2){toast('Colaborador creado pero no se pudo generar usuario (apellido/nombre muy corto)');closeOv('ovEmp');await loadEmpleados();return;}
-    // Buscar nombre disponible: u, u1, u2...
-    let userFinal=baseUser;
-    for(let i=1;i<20;i++){
-      const existe=await api(`roster_usuarios?usuario=eq.${userFinal}&select=id`);
-      if(!existe||!existe.length)break;
-      userFinal=baseUser+i;
+  // Auto-create user (también funciona al editar si no tiene usuario aún)
+  if(document.getElementById('eCrearUser').checked&&empId){
+    // Chequear si ya existe un usuario vinculado a este colaborador
+    const yaExiste=await api(`roster_usuarios?empleado_id=eq.${empId}&select=usuario`);
+    if(yaExiste&&yaExiste.length){
+      toast(`Este colaborador ya tiene usuario: ${yaExiste[0].usuario}`,4000);
+    }else{
+      const norm=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+      const baseUser=norm(apellido).slice(0,3)+norm(nombreP).slice(0,3);
+      if(baseUser.length<2){toast('Colaborador guardado pero no se pudo generar usuario (apellido/nombre muy corto)');closeOv('ovEmp');await loadEmpleados();return;}
+      // Buscar nombre disponible: u, u1, u2...
+      let userFinal=baseUser;
+      for(let i=1;i<20;i++){
+        const existe=await api(`roster_usuarios?usuario=eq.${userFinal}&select=id`);
+        if(!existe||!existe.length)break;
+        userFinal=baseUser+i;
+      }
+      const h=await sha256('azuca26');
+      const r=await api('roster_usuarios','POST',{usuario:userFinal,password_hash:h,nombre,perfil:'usuario',empleado_id:empId,activo:true});
+      if(r&&r.length){toast(`✓ Usuario creado: ${userFinal} / azuca26`,5000);}
+      else{toast('Colaborador guardado pero falló la creación del usuario',4000);}
     }
-    const h=await sha256('azuca26');
-    const r=await api('roster_usuarios','POST',{usuario:userFinal,password_hash:h,nombre,perfil:'usuario',empleado_id:empId,activo:true});
-    if(r&&r.length){toast(`✓ Usuario creado: ${userFinal} / azuca26`,5000);}
-    else{toast('Colaborador creado pero falló la creación del usuario',4000);}
   }
   closeOv('ovEmp');await loadEmpleados();
 };
@@ -598,10 +620,10 @@ function renderUsuarios(){
   if(!USUARIOS_R.length){tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:24px">Sin usuarios</td></tr>`;return;}
   const PFIL={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'};
   tb.innerHTML=USUARIOS_R.map(u=>`<tr>
-    <td><strong>${esc(u.nombre)}</strong></td>
-    <td><code>${esc(u.usuario)}</code></td>
+    <td style="font-weight:600">${esc(u.nombre)}</td>
+    <td style="font-family:'DM Sans',sans-serif;color:var(--gray)">${esc(u.usuario)}</td>
     <td><span class="badge b-${u.perfil}">${PFIL[u.perfil]||esc(u.perfil)}</span></td>
-    <td style="font-size:11px">${u.locales_editor?.map(l=>esc(LOCAL_LABELS[l]||l)).join(', ')||'—'}</td>
+    <td style="font-size:12px">${u.locales_editor?.map(l=>esc(LOCAL_LABELS[l]||l)).join(', ')||'—'}</td>
     <td><span class="badge ${u.activo?'b-aprobado':'b-rechazado'}">${u.activo?'Activo':'Inactivo'}</span></td>
     <td style="display:flex;gap:4px">
       <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editUser(${u.id})">✏️</button>
@@ -693,7 +715,7 @@ function renderTurnos(){
     return `<span style="color:var(--off-text);background:var(--off-bg);padding:2px 6px;border-radius:10px;font-size:10px">OFF</span>`;
   };
   tb.innerHTML=f.map(t=>`<tr>
-    <td><strong>${esc(t.nombre)}</strong></td>
+    <td style="font-weight:600">${esc(t.nombre)}</td>
     <td>${t.local==='TODOS'?'🌐 Global':esc(LOCAL_LABELS[t.local]||t.local)}</td>
     ${DIAS_TE.map(d=>`<td style="text-align:center">${fmtCell(t[d],t[d+'_flex'])}</td>`).join('')}
     <td><button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editTurnoEst(${t.id})">✏️</button></td>
