@@ -4,7 +4,6 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AZUCA · Roster</title>
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1C1A17">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AZUCA Roster">
@@ -14,7 +13,7 @@
   --cream:#F5F0E8;--dark:#1C1A17;--olive:#5C6B3A;--olive-l:#7A8B50;
   --rust:#C4622D;--sand:#D4C4A0;--sand-l:#EAE0CC;--white:#FDFBF7;
   --gray:#8A8278;--red:#C0392B;--green:#27AE60;--yellow:#F1C40F;
-  --off-bg:#FFF9C4;--off-text:#9A7D0A;
+  --off-bg:#FFF9C4;--off-text:#9A7D0A;--blue:#2980B9;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);min-height:100vh;font-size:14px}
@@ -24,9 +23,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 #vLogin{position:fixed;inset:0;background:var(--dark);z-index:999;display:none;align-items:center;justify-content:center}
 #vLogin.active{display:flex}
 .login-box{background:var(--cream);border-radius:20px;padding:40px 32px;width:90%;max-width:380px;text-align:center}
-.login-logo{font-family:'Playfair Display',serif;font-size:32px;letter-spacing:4px;color:var(--dark);margin-bottom:2px}
+.login-logo{font-family:'Playfair Display',serif;font-size:32px;letter-spacing:4px;margin-bottom:2px}
 .login-logo span{color:var(--rust)}
-.login-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gray);margin-bottom:6px}
+.login-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gray);margin-bottom:4px}
 .login-mod{font-size:11px;font-weight:600;color:var(--olive);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px}
 .login-err{display:none;background:#FFEBEE;color:var(--red);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:14px}
 .lf{text-align:left;margin-bottom:14px}
@@ -46,14 +45,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:520px;margin:0 auto 20px}
 .dash-card{background:var(--cream);border-radius:16px;padding:24px 16px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all .2s}
 .dash-card:hover{transform:translateY(-2px);border-color:var(--sand)}
-.dash-card.full{grid-column:1/-1}
 .dash-icon{font-size:32px;margin-bottom:10px}
-.dash-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--dark);margin-bottom:4px}
+.dash-title{font-family:'Playfair Display',serif;font-size:16px;margin-bottom:4px}
 .dash-desc{font-size:11px;color:var(--gray)}
 .btn-logout{display:block;width:100%;max-width:520px;margin:0 auto;padding:10px;background:none;border:1.5px solid rgba(255,255,255,.2);border-radius:10px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif}
 
 /* APP HEADER */
-.app-hdr{background:var(--dark);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.app-hdr{background:var(--dark);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:8px}
 .app-brand{font-family:'Playfair Display',serif;font-size:18px;color:var(--cream);letter-spacing:3px}
 .app-brand span{color:var(--rust)}
 .app-sec{font-size:9px;color:var(--sand);letter-spacing:2px;text-transform:uppercase;margin-top:1px}
@@ -63,6 +61,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .as{background:var(--sand);color:var(--dark)}
 .ab{background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.75)}
 .ar{background:var(--rust);color:var(--white)}
+.ag{background:var(--green);color:var(--white)}
 
 /* CONTENT */
 .content{padding:20px;max-width:1200px;margin:0 auto}
@@ -90,16 +89,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .roster-table td:last-child{border-right:none}
 
 /* TURNO CELL */
-.turno-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:80px;cursor:pointer;border-radius:8px;padding:6px 4px;transition:background .15s}
+.turno-cell{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:72px;cursor:pointer;border-radius:8px;padding:6px 4px;transition:background .15s}
 .turno-cell:hover{background:var(--cream)}
 .turno-hora{font-size:13px;font-weight:600;color:var(--dark)}
 .turno-off{font-size:12px;font-weight:700;color:var(--off-text);background:var(--off-bg);padding:3px 10px;border-radius:20px;letter-spacing:1px}
 .turno-vacio{font-size:11px;color:var(--sand);font-style:italic}
 .turno-comment{font-size:9px;color:var(--olive);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.turno-cell.readonly{cursor:default}
-.turno-cell.readonly:hover{background:transparent}
+.turno-cell.readonly{cursor:default}.turno-cell.readonly:hover{background:transparent}
 
-/* COMMENT GENERAL */
+/* COMMENT BOX */
 .comment-general{background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px}
 .comment-general textarea{flex:1;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--dark);resize:none;outline:none;min-height:36px}
 .comment-general .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gray);white-space:nowrap;margin-top:2px}
@@ -118,67 +116,72 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--olive);background:var(--white)}
 .fg textarea{resize:vertical;min-height:70px}
 .ma{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid var(--sand-l)}
-
-/* BUTTONS */
-.btn{border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.btn{border:none;border-radius:8px;padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600}
 .bp{background:var(--olive);color:var(--white)}
 .bs{background:var(--white);color:var(--dark);border:1px solid var(--sand)}
 .br{background:var(--rust);color:var(--white)}
 .bd{background:none;color:var(--red);border:none;cursor:pointer;font-size:13px;padding:4px 8px}
+
+/* TABLES */
+.tw{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{background:var(--dark);color:var(--sand);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:11px 14px;text-align:left}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--sand-l);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--cream)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.toolbar input,.toolbar select{padding:8px 12px;border:1px solid var(--sand);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--white);color:var(--dark);outline:none}
+.toolbar input{flex:1;min-width:140px}
+
+/* BADGES */
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.b-pendiente{background:#FFF8E1;color:#E67E22}
+.b-aprobado{background:#E8F5E9;color:var(--green)}
+.b-rechazado{background:#FFEBEE;color:var(--red)}
+.b-master{background:#EDE7F6;color:#5E35B1}
+.b-editor{background:#E3F2FD;color:var(--blue)}
+.b-usuario{background:#F5F5F5;color:var(--gray)}
 
 /* INCIDENCIAS */
 .inc-list{display:flex;flex-direction:column;gap:8px}
 .inc-card{background:var(--white);border:1px solid var(--sand-l);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .inc-info .nombre{font-weight:600;font-size:13px;margin-bottom:2px}
 .inc-info .meta{font-size:11px;color:var(--gray)}
-.inc-info .desc{font-size:12px;color:var(--dark);margin-top:4px}
-.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
-.b-pendiente{background:#FFF8E1;color:#E67E22}
-.b-aprobado{background:#E8F5E9;color:var(--green)}
-.b-rechazado{background:#FFEBEE;color:var(--red)}
-.inc-actions{display:flex;gap:6px;flex-shrink:0}
+.inc-info .desc{font-size:12px;margin-top:4px}
 
-/* EMPLEADOS */
-.tw{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;overflow:hidden}
-.tbl{width:100%;border-collapse:collapse}
-.tbl th{background:var(--dark);color:var(--sand);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:11px 14px;text-align:left}
-.tbl td{padding:10px 14px;border-bottom:1px solid var(--sand-l);font-size:13px}
-.tbl tr:last-child td{border-bottom:none}
-.tbl tr:hover td{background:var(--cream)}
-.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
-.toolbar input,.toolbar select{padding:8px 12px;border:1px solid var(--sand);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--white);color:var(--dark);outline:none}
-.toolbar input{width:200px}
-
-/* TOAST */
-.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:var(--cream);padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
-.toast.show{opacity:1}
-
-.empty{text-align:center;padding:40px;color:var(--gray)}
-.empty .icon{font-size:44px;margin-bottom:10px}
-
-/* MI SEMANA (empleado) */
+/* MI SEMANA */
 .mi-semana-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:20px}
 .dia-card{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px 10px;text-align:center}
 .dia-card.off{background:var(--off-bg);border-color:#F0E060}
-.dia-card .dia-nombre{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px}
-.dia-card .dia-fecha{font-size:11px;color:var(--gray);margin-bottom:8px}
-.dia-card .dia-hora{font-size:20px;font-weight:700;color:var(--dark)}
+.dia-nombre{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px}
+.dia-fecha{font-size:11px;color:var(--gray);margin-bottom:8px}
+.dia-hora{font-size:20px;font-weight:700}
 .dia-card.off .dia-hora{font-size:14px;font-weight:700;color:var(--off-text);letter-spacing:2px}
-.dia-card .dia-comment{font-size:10px;color:var(--olive);margin-top:4px}
+.dia-comment{font-size:10px;color:var(--olive);margin-top:4px}
 
-/* TURNO EDIT TOGGLE */
+/* TURNO TOGGLE */
 .off-toggle{display:flex;gap:8px;margin-bottom:12px}
 .off-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--sand);background:var(--white);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--gray);transition:all .2s;text-align:center}
 .off-btn.active-work{background:var(--olive);border-color:var(--olive);color:var(--white)}
 .off-btn.active-off{background:var(--off-bg);border-color:#F0E060;color:var(--off-text)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark);color:var(--cream);padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.empty{text-align:center;padding:40px;color:var(--gray)}
+.empty .icon{font-size:44px;margin-bottom:10px}
+
+/* LOCALES CHECKBOX */
+.locales-check{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.locales-check label{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 10px;border:1px solid var(--sand);border-radius:20px;background:var(--white)}
+.locales-check input[type=checkbox]{width:auto}
+.locales-check label:has(input:checked){background:var(--olive);border-color:var(--olive);color:var(--white)}
 
 @media(max-width:600px){
   .dash-grid{grid-template-columns:1fr}
   .mi-semana-grid{grid-template-columns:repeat(2,1fr)}
   .frow{grid-template-columns:1fr}
   .content{padding:14px}
-  .app-btns{gap:4px}
-  .abtn{padding:6px 10px;font-size:11px}
   .overlay{padding:0;align-items:flex-end}
   .modal{border-radius:20px 20px 0 0;max-width:100%!important;max-height:90vh;overflow-y:auto;padding:20px 16px}
 }
@@ -193,8 +196,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     <div class="login-sub">Grupo Gastronómico</div>
     <div class="login-mod">📅 Roster</div>
     <div class="login-err" id="loginErr">Usuario o contraseña incorrectos</div>
-    <div class="lf"><label>Usuario</label><input type="text" id="loginUser" placeholder="tu usuario"></div>
-    <div class="lf"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+    <div class="lf"><label>Usuario</label><input type="text" id="loginUser" placeholder="usuario" autocomplete="username"></div>
+    <div class="lf"><label>Contraseña</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn-login" onclick="doLogin()">Ingresar</button>
   </div>
 </div>
@@ -211,12 +214,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
-<!-- ROSTER (editor/rrhh) -->
+<!-- ROSTER -->
 <div id="vRoster" class="view">
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Roster</div></div>
     <div class="app-btns">
-      <button class="abtn ao" id="btnPublicar" onclick="publicarRoster()" style="display:none">✓ Publicar</button>
+      <button class="abtn ag" id="btnPublicar" onclick="publicarRoster()" style="display:none">✓ Publicar</button>
       <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
     </div>
   </div>
@@ -232,7 +235,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <textarea id="commentGeneralTxt" placeholder="Comentario general de la semana para este local..." rows="2" onblur="guardarCommentGeneral()"></textarea>
     </div>
     <div class="roster-wrap">
-      <table class="roster-table" id="rosterTable">
+      <table class="roster-table">
         <thead id="rosterHead"></thead>
         <tbody id="rosterBody"></tbody>
       </table>
@@ -240,7 +243,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
 </div>
 
-<!-- MI SEMANA (empleado) -->
+<!-- MI SEMANA -->
 <div id="vMiSemana" class="view">
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Mi Semana</div></div>
@@ -250,7 +253,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     </div>
   </div>
   <div class="content">
-    <div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:16px" id="miSemBienvenido"></div>
+    <div style="font-family:'Playfair Display',serif;font-size:22px;margin-bottom:16px" id="miSemBienvenido"></div>
     <div class="week-nav">
       <button class="week-btn" onclick="cambiarSemanaEmp(-1)">← Anterior</button>
       <div class="week-label" id="weekLabelEmp"></div>
@@ -261,7 +264,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
 </div>
 
-<!-- INCIDENCIAS (rrhh) -->
+<!-- INCIDENCIAS -->
 <div id="vIncidencias" class="view">
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Incidencias</div></div>
@@ -269,7 +272,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
   <div class="content">
     <div class="ptitle">Incidencias</div>
-    <div class="psub">Revisá y gestioná las incidencias reportadas por el equipo</div>
+    <div class="psub">Revisá y gestioná las incidencias reportadas</div>
     <div class="toolbar">
       <select id="incFiltLocal" onchange="loadIncidencias()">
         <option value="">Todos los locales</option>
@@ -277,6 +280,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
         <option value="5-TRAPICHE">Trapiche</option>
         <option value="3-NIETO">Nieto</option>
         <option value="4-VIÑA COBOS">Viña Cobos</option>
+        <option value="VINOBIEN">Vinobien</option>
         <option value="1-AZUCA">Azuca</option>
       </select>
       <select id="incFiltEstado" onchange="loadIncidencias()">
@@ -290,7 +294,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
 </div>
 
-<!-- EMPLEADOS (rrhh) -->
+<!-- COLABORADORES -->
 <div id="vEmpleados" class="view">
   <div class="app-hdr">
     <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Colaboradores</div></div>
@@ -301,21 +305,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
   </div>
   <div class="content">
     <div class="ptitle">Colaboradores</div>
-    <div class="psub">Listado de colaboradores AZUCA</div>
+    <div class="psub">Listado del equipo AZUCA por local y sector</div>
     <div class="toolbar">
       <input type="text" id="empSearch" placeholder="Buscar..." oninput="renderEmpleados()">
       <select id="empFiltLocal" onchange="renderEmpleados()">
         <option value="">Todos los locales</option>
+        <option value="1-AZUCA">Azuca</option>
         <option value="2-AZAFRAN">Azafrán</option>
-        <option value="5-TRAPICHE">Trapiche</option>
         <option value="3-NIETO">Nieto</option>
         <option value="4-VIÑA COBOS">Viña Cobos</option>
-        <option value="1-AZUCA">Azuca</option>
+        <option value="5-TRAPICHE">Trapiche</option>
+        <option value="VINOBIEN">Vinobien</option>
       </select>
     </div>
     <div class="tw"><table class="tbl">
-      <thead><tr><th>Nombre</th><th>Local principal</th><th>Sector</th><th>Cargo</th><th>Teléfono</th><th></th></tr></thead>
+      <thead><tr><th>Apellido</th><th>Nombre</th><th>Local</th><th>Sector</th><th>Cargo</th><th>Teléfono</th><th></th></tr></thead>
       <tbody id="empTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- USUARIOS -->
+<div id="vUsuarios" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Usuarios</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" onclick="openUserModal()">+ Nuevo</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="ptitle">Usuarios y Accesos</div>
+    <div class="psub">Gestioná los accesos al sistema de roster</div>
+    <div class="tw"><table class="tbl">
+      <thead><tr><th>Nombre</th><th>Usuario</th><th>Perfil</th><th>Locales editor</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="userTbody"></tbody>
     </table></div>
   </div>
 </div>
@@ -335,37 +359,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     </div>
     <div id="turnoHoraWrap">
       <div class="frow" style="margin-bottom:12px">
-        <div class="fg"><label>Hora de entrada</label>
-          <select id="turnoHoraH" style="font-size:20px;font-weight:700;text-align:center;padding:10px">
+        <div class="fg"><label>Hora</label>
+          <select id="turnoHoraH" style="font-size:22px;font-weight:700;text-align:center;padding:10px">
             <option value="">--</option>
-            <option value="07">07</option>
-            <option value="08">08</option>
-            <option value="09">09</option>
-            <option value="10">10</option>
-            <option value="11">11</option>
-            <option value="12">12</option>
-            <option value="13">13</option>
-            <option value="14">14</option>
-            <option value="15">15</option>
-            <option value="16">16</option>
-            <option value="17">17</option>
-            <option value="18">18</option>
-            <option value="19">19</option>
-            <option value="20">20</option>
-            <option value="21">21</option>
-            <option value="22">22</option>
-            <option value="23">23</option>
-            <option value="00">00</option>
-            <option value="01">01</option>
-            <option value="02">02</option>
-            <option value="03">03</option>
-            <option value="04">04</option>
-            <option value="05">05</option>
-            <option value="06">06</option>
+            <option value="07">07</option><option value="08">08</option><option value="09">09</option>
+            <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+            <option value="13">13</option><option value="14">14</option><option value="15">15</option>
+            <option value="16">16</option><option value="17">17</option><option value="18">18</option>
+            <option value="19">19</option><option value="20">20</option><option value="21">21</option>
+            <option value="22">22</option><option value="23">23</option><option value="00">00</option>
+            <option value="01">01</option><option value="02">02</option>
           </select>
         </div>
         <div class="fg"><label>Minutos</label>
-          <select id="turnoHoraM" style="font-size:20px;font-weight:700;text-align:center;padding:10px">
+          <select id="turnoHoraM" style="font-size:22px;font-weight:700;text-align:center;padding:10px">
             <option value="00">00</option>
             <option value="15">15</option>
             <option value="30">30</option>
@@ -392,8 +399,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
     <button class="mc" onclick="closeOv('ovIncidencia')">✕</button>
     <h2>Reportar incidencia</h2>
     <div class="frow">
-      <div class="fg">
-        <label>Tipo</label>
+      <div class="fg"><label>Tipo</label>
         <select id="incTipo">
           <option value="tardanza">⏰ Llegada tarde</option>
           <option value="ausencia">❌ Ausencia</option>
@@ -401,10 +407,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
           <option value="otro">📝 Otro</option>
         </select>
       </div>
-      <div class="fg">
-        <label>Fecha</label>
-        <input type="date" id="incFecha">
-      </div>
+      <div class="fg"><label>Fecha</label><input type="date" id="incFecha"></div>
     </div>
     <div class="fg full" style="margin-bottom:4px">
       <label>Descripción</label>
@@ -419,7 +422,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 
 <!-- Modal Colaborador -->
 <div class="overlay" id="ovEmp">
-  <div class="modal">
+  <div class="modal" style="max-width:560px">
     <button class="mc" onclick="closeOv('ovEmp')">✕</button>
     <h2 id="empModalTitle">Nuevo Colaborador</h2>
     <div class="frow">
@@ -464,12 +467,62 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
       <div class="fg"><label>Tel. de contacto</label><input type="tel" id="eTel" placeholder="+54 9 261 xxx xxxx"></div>
       <div class="fg"><label>Fecha de nacimiento</label><input type="date" id="eFechaNac"></div>
     </div>
+    <div class="fg full" style="margin-bottom:4px">
+      <label>¿Crear usuario automáticamente?</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <input type="checkbox" id="eCrearUser" checked style="width:auto">
+        <span style="font-size:12px;color:var(--gray)">Usuario: primeras 3 letras apellido + 3 letras nombre · Contraseña: azuca26</span>
+      </div>
+    </div>
     <div class="ma">
       <button class="btn bs" onclick="closeOv('ovEmp')">Cancelar</button>
       <button class="btn bp" onclick="guardarEmpleado()">Guardar</button>
     </div>
   </div>
-</div>/div>
+</div>
+
+<!-- Modal Usuario -->
+<div class="overlay" id="ovUser">
+  <div class="modal" style="max-width:520px">
+    <button class="mc" onclick="closeOv('ovUser')">✕</button>
+    <h2 id="userModalTitle">Nuevo Usuario</h2>
+    <div class="frow">
+      <div class="fg"><label>Nombre</label><input type="text" id="uNombre" placeholder="Nombre completo"></div>
+      <div class="fg"><label>Usuario</label><input type="text" id="uUsuario" placeholder="usuario.login" autocomplete="off"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label>Perfil</label>
+        <select id="uPerfil" onchange="toggleLocalesEditor()">
+          <option value="usuario">👤 Usuario — solo mi semana</option>
+          <option value="editor">✏️ Editor — arma rosters</option>
+          <option value="master">⭐ Master — acceso total</option>
+        </select>
+      </div>
+      <div class="fg"><label>Contraseña</label><input type="text" id="uPass" placeholder="azuca26" autocomplete="new-password"></div>
+    </div>
+    <div id="localesEditorWrap" style="display:none;margin-bottom:12px">
+      <label style="font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--gray);display:block;margin-bottom:8px">Locales que puede editar</label>
+      <div class="locales-check">
+        <label><input type="checkbox" value="1-AZUCA"> Azuca</label>
+        <label><input type="checkbox" value="2-AZAFRAN"> Azafrán</label>
+        <label><input type="checkbox" value="3-NIETO"> Nieto</label>
+        <label><input type="checkbox" value="4-VIÑA COBOS"> Viña Cobos</label>
+        <label><input type="checkbox" value="5-TRAPICHE"> Trapiche</label>
+        <label><input type="checkbox" value="VINOBIEN"> Vinobien</label>
+      </div>
+    </div>
+    <div class="fg full" style="margin-bottom:4px">
+      <label>Colaborador vinculado (para Mi Semana)</label>
+      <select id="uEmpleadoId">
+        <option value="">Sin vincular</option>
+      </select>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovUser')">Cancelar</button>
+      <button class="btn bp" onclick="guardarUsuario()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -477,62 +530,79 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 (function(){
 const SU='https://vbnucvzjlcghrmqxjldp.supabase.co';
 const SK='sb_publishable_VGfoUAU6e0zlXzkY2y8iBw_lYeOKU7K';
-
 const LOCAL_LABELS={'1-AZUCA':'Azuca','2-AZAFRAN':'Azafrán','3-NIETO':'Nieto Senetiner','4-VIÑA COBOS':'Viña Cobos','5-TRAPICHE':'Espacio Trapiche','VINOBIEN':'Vinobien'};
 const DIAS=['Lun.','Mar.','Mié.','Jue.','Vie.','Sáb.','Dom.'];
+const CARGOS_POR_SECTOR={
+  'COCINA':['CHEF EJECUTIVO','SOUS CHEF','ASESOR SOUS CHEF','LIDER DE COCINA','CAPITAN DE COCINA','COCINERO SENIOR','COCINERO','BACHERO SENIOR','BACHERO','GERENTE DE AREA','EVENTUAL','OTRO'],
+  'SALA':['ENCARGADO DE LOCAL','JEFE DE OPERACIONES','LIDER SALA','LIDER DE SALA','CAPITAN DE CAMAREROS','JEFE SALA TRAP','CAMARERO SENIOR','CAMARERO','AYUDANTE DE SALA','GESTION DE RESERVAS','BARTENDER SOMMELIER','GERENTE DE AREA','EVENTUAL','OTRO'],
+  'CAVA':['JEFE DE BEBIDAS','SOMM SENIOR','SOMM','SOMMELIER','BARTENDER SOMMELIER','GERENTE DE AREA','EVENTUAL','OTRO'],
+  'ORDENANZA':['JEFE DE ORDENANZA','ORDENANZA SENIOR','ORDENANZA','GERENTE DE AREA','EVENTUAL','OTRO'],
+  'SEGURIDAD':['JEFE DE SEGURIDAD','SEGURIDAD','GERENTE DE AREA','EVENTUAL','OTRO'],
+  'ADMINISTRACION':['GERENTE DE ADMINISTRACION','GERENTE DE AREA','JEFE DE COMPRAS','TESORERO','LOGISTICA','ADMINISTRATIVO','ADMINISTRATIVO PARTIME','OTRO'],
+  'GERENCIA':['GERENTE GENERAL','GERENTE DE SERVICIO','GERENTE DE GASTRONOMIA','GERENTE DE ADMINISTRACION','GERENTE DE MARKETING','GERENTE DE AREA','OTRO'],
+};
 
-let CU=null, EMPLEADOS=[], SEMANA_ACTUAL=null, LOCAL_ACTUAL=null;
-let TURNOS_MAP={}, SEMANA_ID=null, SEMANA_OBJ=null;
-let SEMANA_EMP=null, eEmpId=null;
+let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null;
+let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null;
+let eEmpId=null,eUserId=null;
 
-// ── API ────────────────────────────────────────────────────
+// ── API ─────────────────────────────────────────
 async function api(p,m='GET',b=null){
   const o={method:m,headers:{'Content-Type':'application/json','apikey':SK,'Authorization':'Bearer '+SK,'Prefer':m==='POST'?'return=representation':''}};
-  if(b) o.body=JSON.stringify(b);
-  try{const r=await fetch(SU+'/rest/v1/'+p,o);if(r.status===204)return true;const d=await r.json();if(!r.ok){console.error(d);return null;}return d;}catch(e){console.error(e);return null;}
+  if(b)o.body=JSON.stringify(b);
+  try{const r=await fetch(SU+'/rest/v1/'+p,o);if(r.status===204)return true;const d=await r.json();if(!r.ok){console.error(d);return null;}return d;}
+  catch(e){console.error(e);return null;}
 }
 async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function toast(m,d=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 function fmt(d){if(!d)return '';const dt=new Date(d+'T12:00:00');return `${dt.getDate()}-${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]}`;}
-
-// ── FECHA UTILS ───────────────────────────────────────────
 function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=day===0?-6:1-day;dt.setDate(dt.getDate()+diff);return dt.toISOString().split('T')[0];}
-function addDays(dateStr,n){const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
-function diasDeSemana(lunes){return Array.from({length:7},(_,i)=>addDays(lunes,i));}
-function formatSemana(lunes){const dias=diasDeSemana(lunes);return `Semana del ${fmt(dias[0])} al ${fmt(dias[6])}`;}
+function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
+function diasDeSemana(l){return Array.from({length:7},(_,i)=>addDays(l,i));}
+function formatSemana(l){const d=diasDeSemana(l);return `Semana del ${fmt(d[0])} al ${fmt(d[6])}`;}
 
-// ── LOGIN ─────────────────────────────────────────────────
+// ── PERFIL ───────────────────────────────────────
+function esMaster(){return CU?.perfil==='master';}
+function esEditorPerfil(){return CU?.perfil==='master'||CU?.perfil==='editor';}
+function puedeEditarLocal(local){
+  if(esMaster())return true;
+  if(CU?.perfil!=='editor')return false;
+  if(!CU.locales_editor||!CU.locales_editor.length)return true;
+  return CU.locales_editor.includes(local);
+}
+
+// ── LOGIN ───────────────────────────────────────
 async function doLogin(){
   const u=document.getElementById('loginUser').value.trim().toLowerCase();
   const p=document.getElementById('loginPass').value;
   if(!u||!p)return;
   const h=await sha256(p);
-  const r=await api(`usuarios?usuario=eq.${encodeURIComponent(u)}&password_hash=eq.${h}&activo=eq.true&select=*`);
+  const r=await api(`roster_usuarios?usuario=eq.${encodeURIComponent(u)}&password_hash=eq.${h}&activo=eq.true&select=*`);
   if(!r||!r.length){document.getElementById('loginErr').style.display='block';return;}
-  CU=r[0];sessionStorage.setItem('az_roster_u',JSON.stringify(CU));
+  CU=r[0];sessionStorage.setItem('az_roster_cu',JSON.stringify(CU));
   document.getElementById('loginErr').style.display='none';
   afterLogin();
 }
 window.doLogin=doLogin;
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-function doLogout(){CU=null;sessionStorage.removeItem('az_roster_u');showView('vLogin');}
+function doLogout(){CU=null;sessionStorage.removeItem('az_roster_cu');showView('vLogin');}
 window.doLogout=doLogout;
 function afterLogin(){
-  document.getElementById('dashUser').textContent=`${CU.nombre} · ${CU.rol}`;
+  const perfil={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'}[CU.perfil]||CU.perfil;
+  document.getElementById('dashUser').textContent=`${CU.nombre} · ${perfil}`;
   buildDash();showView('vDash');
 }
-function checkSession(){const s=sessionStorage.getItem('az_roster_u');if(s){CU=JSON.parse(s);afterLogin();}else showView('vLogin');}
+function checkSession(){const s=sessionStorage.getItem('az_roster_cu');if(s){CU=JSON.parse(s);afterLogin();}else showView('vLogin');}
 
-// ── DASHBOARD ─────────────────────────────────────────────
+// ── DASHBOARD ────────────────────────────────────
 function buildDash(){
-  const esRRHH=CU.rol==='admin';
-  const esEditor=CU.rol==='admin'||CU.rol==='compras'; // compras = editor en roster
   const cards=[];
-  cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
+  if(esEditorPerfil())cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
-  if(esRRHH||esEditor){
-    cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
-    cards.push({i:'👥',t:'Colaboradores',d:'Gestión de colaboradores',a:"showView('vEmpleados')"});
+  if(esEditorPerfil())cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
+  if(esMaster()){
+    cards.push({i:'👥',t:'Colaboradores',d:'Gestión del personal',a:"showView('vEmpleados')"});
+    cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -542,14 +612,17 @@ function buildDash(){
     </div>`).join('');
 }
 
-// ── VIEWS ─────────────────────────────────────────────────
+// ── VIEWS ─────────────────────────────────────────
 function showView(id){
+  if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
+  if((id==='vEmpleados'||id==='vUsuarios')&&!esMaster()){toast('Solo master');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
-  if(id==='vRoster'){initRoster();}
-  if(id==='vMiSemanaView'){initMiSemana();}
-  if(id==='vIncidencias'){loadIncidencias();}
-  if(id==='vEmpleados'){loadEmpleados();}
+  if(id==='vRoster')initRoster();
+  if(id==='vMiSemanaView')initMiSemana();
+  if(id==='vIncidencias')loadIncidencias();
+  if(id==='vEmpleados')loadEmpleados();
+  if(id==='vUsuarios')loadUsuarios();
 }
 window.showView=showView;
 function openOv(id){document.getElementById(id).classList.add('open');}
@@ -557,339 +630,201 @@ function closeOv(id){document.getElementById(id).classList.remove('open');}
 window.closeOv=closeOv;
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
-// ── ROSTER ────────────────────────────────────────────────
+// ── ROSTER ────────────────────────────────────────
 async function initRoster(){
-  if(!SEMANA_ACTUAL) SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
+  if(!SEMANA_ACTUAL)SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
   await loadEmpleadosData();
-  buildLocalTabs();
-  if(!LOCAL_ACTUAL) LOCAL_ACTUAL=Object.keys(LOCAL_LABELS)[1]; // default Azafrán
+  // Only show locales this editor can see
+  const locales=Object.keys(LOCAL_LABELS).filter(l=>esMaster()||puedeEditarLocal(l));
+  if(!LOCAL_ACTUAL||!locales.includes(LOCAL_ACTUAL))LOCAL_ACTUAL=locales[0];
+  buildLocalTabs(locales);
   await loadRoster();
 }
-
-function buildLocalTabs(){
-  const locales=Object.keys(LOCAL_LABELS);
-  document.getElementById('localTabs').innerHTML=locales.map(l=>`
-    <div class="local-tab ${l===LOCAL_ACTUAL?'active':''}" onclick="cambiarLocal('${l}')">${LOCAL_LABELS[l]}</div>`
-  ).join('');
+function buildLocalTabs(locales){
+  document.getElementById('localTabs').innerHTML=(locales||Object.keys(LOCAL_LABELS)).map(l=>`
+    <div class="local-tab ${l===LOCAL_ACTUAL?'active':''}" onclick="cambiarLocal('${l}')">${LOCAL_LABELS[l]}</div>`).join('');
 }
 window.cambiarLocal=async function(l){LOCAL_ACTUAL=l;buildLocalTabs();await loadRoster();};
-
 function cambiarSemana(n){SEMANA_ACTUAL=addDays(SEMANA_ACTUAL,n*7);loadRoster();}
 window.cambiarSemana=cambiarSemana;
 
 async function loadRoster(){
   document.getElementById('weekLabel').textContent=formatSemana(SEMANA_ACTUAL);
-  const esEditor=CU.rol==='admin'||CU.rol==='compras';
-  document.getElementById('btnPublicar').style.display=esEditor?'':'none';
-
-  // Load or create semana
+  const puedeEditar=puedeEditarLocal(LOCAL_ACTUAL);
+  document.getElementById('btnPublicar').style.display=puedeEditar?'':'none';
   const semanas=await api(`roster_semanas?local=eq.${encodeURIComponent(LOCAL_ACTUAL)}&fecha_lunes=eq.${SEMANA_ACTUAL}&select=*`);
-  if(semanas&&semanas.length){
-    SEMANA_OBJ=semanas[0];SEMANA_ID=semanas[0].id;
-  } else {
-    SEMANA_OBJ=null;SEMANA_ID=null;
-  }
-
-  // Comment general
-  const cgEl=document.getElementById('commentGeneral');
+  if(semanas&&semanas.length){SEMANA_OBJ=semanas[0];SEMANA_ID=semanas[0].id;}
+  else{SEMANA_OBJ=null;SEMANA_ID=null;}
+  const cg=document.getElementById('commentGeneral');
   const cgTxt=document.getElementById('commentGeneralTxt');
-  cgEl.style.display=esEditor?'flex':'none';
-  if(esEditor) cgTxt.value=SEMANA_OBJ?.comentario_general||'';
-
-  // Load turnos
+  cg.style.display=puedeEditar?'flex':'none';
+  if(puedeEditar)cgTxt.value=SEMANA_OBJ?.comentario_general||'';
   TURNOS_MAP={};
   if(SEMANA_ID){
-    const turnos=await api(`roster_turnos?semana_id=eq.${SEMANA_ID}&select=*`);
-    (turnos||[]).forEach(t=>{TURNOS_MAP[`${t.empleado_id}_${t.dia}`]=t;});
+    const t=await api(`roster_turnos?semana_id=eq.${SEMANA_ID}&select=*`);
+    (t||[]).forEach(t=>{TURNOS_MAP[`${t.empleado_id}_${t.dia}`]=t;});
   }
-
-  renderRosterTable(esEditor);
+  renderRosterTable(puedeEditar);
 }
-
-function renderRosterTable(esEditor){
+function renderRosterTable(puedeEditar){
   const dias=diasDeSemana(SEMANA_ACTUAL);
   const emps=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
-
-  // Head
   document.getElementById('rosterHead').innerHTML=`<tr>
     <th class="emp-col">Colaborador</th>
     ${dias.map((d,i)=>`<th>${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}</small></th>`).join('')}
   </tr>`;
-
-  // Body
-  if(!emps.length){
-    document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin empleados para este local</td></tr>`;
-    return;
-  }
-
+  if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores para este local</td></tr>`;return;}
   document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
     <tr>
-      <td class="emp-cell">
-        ${emp.nombre}
-        <div class="sector">${emp.sector||''} · ${emp.categoria||''}</div>
-      </td>
+      <td class="emp-cell">${emp.apellido||emp.nombre}<div class="sector">${emp.sector||''} · ${emp.categoria||''}</div></td>
       ${dias.map(dia=>{
-        const key=`${emp.id}_${dia}`;
-        const t=TURNOS_MAP[key];
-        if(t){
-          if(t.es_off){
-            return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}">${t.es_off?`<span class="turno-off">OFF</span>`:''}${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
-          }
-          return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}">${t.hora_entrada?`<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>`:'<span class="turno-vacio">—</span>'}${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
-        }
-        return `<td><div class="turno-cell ${esEditor?'':'readonly'}" onclick="${esEditor?`editTurno(${emp.id},'${dia}')`:''}" ><span class="turno-vacio">${esEditor?'+ agregar':'—'}</span></div></td>`;
+        const key=`${emp.id}_${dia}`;const t=TURNOS_MAP[key];
+        const onclick=puedeEditar?`onclick="editTurno(${emp.id},'${dia}')"` :'';
+        const cls=`turno-cell${puedeEditar?'':' readonly'}`;
+        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}><span class="turno-off">OFF</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}><span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${t.comentario?`<div class="turno-comment">💬 ${t.comentario}</div>`:''}</div></td>`;
+        return`<td><div class="${cls}" ${onclick}><span class="turno-vacio">${puedeEditar?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
     </tr>`).join('');
 }
-
-// Guardar comentario general
 window.guardarCommentGeneral=async function(){
   const txt=document.getElementById('commentGeneralTxt').value.trim();
-  if(!SEMANA_ID){
-    // Crear semana si no existe
-    const res=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id});
-    if(res&&res.length){SEMANA_ID=res[0].id;SEMANA_OBJ=res[0];}
-  } else {
-    await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
-  }
+  if(!SEMANA_ID){const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id});if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}}
+  else await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
 };
+window.publicarRoster=function(){toast('✓ Roster publicado — el equipo ya puede ver sus turnos');};
 
-// Publicar roster
-window.publicarRoster=function(){toast('Roster publicado — el equipo ya puede ver sus turnos ✓');};
-
-// ── EDITAR TURNO ──────────────────────────────────────────
+// ── TURNO ─────────────────────────────────────────
 window.editTurno=function(empId,dia){
-  const key=`${empId}_${dia}`;
-  const t=TURNOS_MAP[key];
+  const t=TURNOS_MAP[`${empId}_${dia}`];
   const emp=EMPLEADOS.find(e=>e.id===empId);
-  document.getElementById('turnoTitle').textContent=`${emp?.nombre||''} — ${fmt(dia)}`;
+  document.getElementById('turnoTitle').textContent=`${emp?.apellido||emp?.nombre||''} — ${fmt(dia)}`;
   document.getElementById('turnoEmpId').value=empId;
   document.getElementById('turnoDia').value=dia;
-  const he=t?.hora_entrada?.slice(0,5)||''; if(he){document.getElementById('turnoHoraH').value=he.split(':')[0];document.getElementById('turnoHoraM').value=he.split(':')[1]||'00';}else{document.getElementById('turnoHoraH').value='';document.getElementById('turnoHoraM').value='00';}
+  const he=t?.hora_entrada?.slice(0,5)||'';
+  document.getElementById('turnoHoraH').value=he?he.split(':')[0]:'';
+  document.getElementById('turnoHoraM').value=he?he.split(':')[1]||'00':'00';
   document.getElementById('turnoComment').value=t?.comentario||'';
   setTurnoMode(t?.es_off?'off':'work');
   openOv('ovTurno');
 };
-
-window.setTurnoMode=function(mode){
-  document.getElementById('btnWork').className='off-btn'+(mode==='work'?' active-work':'');
-  document.getElementById('btnOff').className='off-btn'+(mode==='off'?' active-off':'');
-  document.getElementById('turnoHoraWrap').style.display=mode==='work'?'block':'none';
+window.setTurnoMode=function(m){
+  document.getElementById('btnWork').className='off-btn'+(m==='work'?' active-work':'');
+  document.getElementById('btnOff').className='off-btn'+(m==='off'?' active-off':'');
+  document.getElementById('turnoHoraWrap').style.display=m==='work'?'block':'none';
 };
-
 window.guardarTurno=async function(){
   const empId=parseInt(document.getElementById('turnoEmpId').value);
   const dia=document.getElementById('turnoDia').value;
   const esOff=document.getElementById('btnOff').classList.contains('active-off');
-  const h=document.getElementById('turnoHoraH').value;const m=document.getElementById('turnoHoraM').value;const hora=h?(h+':'+m):'';
+  const h=document.getElementById('turnoHoraH').value;
+  const m=document.getElementById('turnoHoraM').value;
+  const hora=h?(h+':'+m):null;
   const comment=document.getElementById('turnoComment').value.trim();
-
-  // Crear semana si no existe
   if(!SEMANA_ID){
-    const res=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
-    if(res&&res.length){SEMANA_ID=res[0].id;SEMANA_OBJ=res[0];}
-    else{toast('Error al crear semana');return;}
+    const r=await api('roster_semanas','POST',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,creado_por:CU.id});
+    if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}else{toast('Error');return;}
   }
-
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
-  const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,hora_entrada:esOff?null:(hora||null),comentario:comment||null};
-
-  if(existing){
-    await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);
-    TURNOS_MAP[key]={...existing,...data};
-  } else {
-    const res=await api('roster_turnos','POST',data);
-    if(res&&res.length) TURNOS_MAP[key]=res[0];
-  }
-  closeOv('ovTurno');
-  renderRosterTable(true);
-  toast('Turno guardado ✓');
+  const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,hora_entrada:esOff?null:hora,comentario:comment||null};
+  if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);TURNOS_MAP[key]={...existing,...data};}
+  else{const r=await api('roster_turnos','POST',data);if(r&&r.length)TURNOS_MAP[key]=r[0];}
+  closeOv('ovTurno');renderRosterTable(true);toast('✓ Turno guardado');
 };
-
 window.borrarTurno=async function(){
   const empId=parseInt(document.getElementById('turnoEmpId').value);
   const dia=document.getElementById('turnoDia').value;
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
-  if(existing){
-    await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');
-    delete TURNOS_MAP[key];
-  }
-  closeOv('ovTurno');
-  renderRosterTable(true);
-  toast('Turno eliminado');
+  if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');delete TURNOS_MAP[key];}
+  closeOv('ovTurno');renderRosterTable(true);toast('Turno eliminado');
 };
 
-// ── MI SEMANA ─────────────────────────────────────────────
+// ── MI SEMANA ─────────────────────────────────────
 async function initMiSemana(){
+  if(!SEMANA_EMP)SEMANA_EMP=getLunes(new Date().toISOString().split('T')[0]);
   const bEl=document.getElementById('miSemBienvenido');
-  if(bEl&&CU) bEl.textContent='Bienvenido/a, '+CU.nombre.split(' ').slice(-1)[0]+'!';
-  if(!SEMANA_EMP) SEMANA_EMP=getLunes(new Date().toISOString().split('T')[0]);
-  // Buscar empleado por nombre del usuario
-  const emps=await api(`empleados?nombre=ilike.*${encodeURIComponent(CU.nombre.split(' ')[0])}*&select=*`);
-  const emp=emps&&emps.length?emps[0]:null;
+  if(bEl&&CU)bEl.textContent='Bienvenido/a, '+CU.nombre+'!';
+  const emp=CU.empleado_id?(await api(`empleados?id=eq.${CU.empleado_id}&select=*`))?.[0]:null;
   await renderMiSemana(emp);
 }
-
 async function renderMiSemana(emp){
   document.getElementById('weekLabelEmp').textContent=formatSemana(SEMANA_EMP);
   const dias=diasDeSemana(SEMANA_EMP);
-
-  let turnos={};
-  let comentGeneral='';
-
+  let turnos={},comentGeneral='';
   if(emp){
-    const semanas=await api(`roster_semanas?local=eq.${encodeURIComponent(emp.local)}&fecha_lunes=eq.${SEMANA_EMP}&select=*`);
-    if(semanas&&semanas.length){
-      const sid=semanas[0].id;
-      comentGeneral=semanas[0].comentario_general||'';
-      const tt=await api(`roster_turnos?semana_id=eq.${sid}&empleado_id=eq.${emp.id}&select=*`);
+    const s=await api(`roster_semanas?local=eq.${encodeURIComponent(emp.local)}&fecha_lunes=eq.${SEMANA_EMP}&select=*`);
+    if(s&&s.length){comentGeneral=s[0].comentario_general||'';
+      const tt=await api(`roster_turnos?semana_id=eq.${s[0].id}&empleado_id=eq.${emp.id}&select=*`);
       (tt||[]).forEach(t=>{turnos[t.dia]=t;});
     }
   }
-
   document.getElementById('miSemanaGrid').innerHTML=dias.map((dia,i)=>{
-    const t=turnos[dia];
-    const esOff=t?.es_off;
-    return `<div class="dia-card ${esOff?'off':''}">
+    const t=turnos[dia];const esOff=t?.es_off;
+    return`<div class="dia-card ${esOff?'off':''}">
       <div class="dia-nombre">${DIAS[i]}</div>
       <div class="dia-fecha">${fmt(dia)}</div>
       <div class="dia-hora">${esOff?'OFF':t?.hora_entrada?t.hora_entrada.slice(0,5):'—'}</div>
       ${t?.comentario?`<div class="dia-comment">💬 ${t.comentario}</div>`:''}
-    </div>`;
-  }).join('');
-
+    </div>`;}).join('');
   const cg=document.getElementById('miComentGeneral');
   if(comentGeneral){cg.style.display='block';cg.innerHTML=`💬 <em>${comentGeneral}</em>`;}
   else cg.style.display='none';
 }
-
 function cambiarSemanaEmp(n){SEMANA_EMP=addDays(SEMANA_EMP,n*7);initMiSemana();}
 window.cambiarSemanaEmp=cambiarSemanaEmp;
 
-// ── INCIDENCIAS ───────────────────────────────────────────
+// ── INCIDENCIAS ───────────────────────────────────
 window.openIncidenciaModal=function(){
   document.getElementById('incFecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('incDesc').value='';
   openOv('ovIncidencia');
 };
-
 window.guardarIncidencia=async function(){
   const tipo=document.getElementById('incTipo').value;
   const fecha=document.getElementById('incFecha').value;
   const desc=document.getElementById('incDesc').value.trim();
-  if(!desc){toast('Describí brevemente la incidencia');return;}
-
-  // Buscar empleado_id del usuario actual
-  const emps=await api(`empleados?nombre=ilike.*${encodeURIComponent(CU.nombre.split(' ')[0])}*&select=id&limit=1`);
-  const empId=emps&&emps.length?emps[0].id:null;
-
-  await api('incidencias','POST',{empleado_id:empId,fecha,tipo,descripcion:desc,estado:'pendiente'});
-  closeOv('ovIncidencia');
-  toast('Incidencia enviada ✓');
+  if(!desc){toast('Describí la incidencia');return;}
+  await api('incidencias','POST',{empleado_id:CU.empleado_id||null,fecha,tipo,descripcion:desc,estado:'pendiente'});
+  closeOv('ovIncidencia');toast('✓ Incidencia enviada');
 };
-
 window.loadIncidencias=async function(){
   const local=document.getElementById('incFiltLocal').value;
   const estado=document.getElementById('incFiltEstado').value;
-
-  let q='incidencias?select=*,empleado:empleado_id(nombre,local,sector)&order=creado_en.desc&limit=100';
-  if(estado) q+=`&estado=eq.${estado}`;
-
+  let q='incidencias?select=*,empleado:empleado_id(nombre,apellido,local,sector)&order=creado_en.desc&limit=100';
+  if(estado)q+=`&estado=eq.${estado}`;
   const data=await api(q)||[];
   const filtered=local?data.filter(i=>i.empleado?.local===local):data;
-
   const list=document.getElementById('incList');
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="icon">✅</div><p>Sin incidencias</p></div>`;return;}
-
   const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
   list.innerHTML=filtered.map(i=>`
     <div class="inc-card">
       <div class="inc-info">
-        <div class="nombre">${i.empleado?.nombre||'—'}</div>
-        <div class="meta">${LOCAL_LABELS[i.empleado?.local]||i.empleado?.local||'—'} · ${i.empleado?.sector||''} · ${fmt(i.fecha)}</div>
+        <div class="nombre">${i.empleado?.apellido||i.empleado?.nombre||'—'}</div>
+        <div class="meta">${LOCAL_LABELS[i.empleado?.local]||'—'} · ${i.empleado?.sector||''} · ${fmt(i.fecha)}</div>
         <div style="margin-top:4px"><span class="badge b-${i.estado}">${TIPOS[i.tipo]||i.tipo}</span></div>
-        ${i.descripcion?`<div class="desc">${i.descripcion}</div>`:''}
+        ${i.descripcion?`<div class="desc" style="margin-top:4px;font-size:12px">${i.descripcion}</div>`:''}
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0">
         <span class="badge b-${i.estado}">${i.estado==='pendiente'?'⏳ Pendiente':i.estado==='aprobado'?'✓ Aprobada':'✗ Rechazada'}</span>
-        ${i.estado==='pendiente'&&(CU.rol==='admin')?`
-          <div class="inc-actions">
-            <button class="btn bp" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'aprobado')">✓ Aprobar</button>
-            <button class="btn bs" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'rechazado')">✗ Rechazar</button>
-          </div>` : ''}
+        ${i.estado==='pendiente'&&esMaster()?`
+          <div style="display:flex;gap:6px">
+            <button class="btn bp" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'aprobado')">✓</button>
+            <button class="btn bs" style="padding:5px 10px;font-size:11px" onclick="resolverInc(${i.id},'rechazado')">✗</button>
+          </div>`:''}
       </div>
     </div>`).join('');
 };
-
 window.resolverInc=async function(id,estado){
   await api(`incidencias?id=eq.${id}`,'PATCH',{estado,revisado_por:CU.id,revisado_en:new Date().toISOString()});
-  toast(estado==='aprobado'?'Incidencia aprobada ✓':'Incidencia rechazada');
+  toast(estado==='aprobado'?'✓ Aprobada':'✗ Rechazada');
   loadIncidencias();
 };
 
-// ── EMPLEADOS ─────────────────────────────────────────────
-async function loadEmpleados(){
-  const data=await api('empleados?select=*&activo=neq.false&order=local.asc,nombre.asc')||[];
-  EMPLEADOS=data;renderEmpleados();
-}
-
-async function loadEmpleadosData(){
-  if(!EMPLEADOS.length){
-    const data=await api('empleados?select=*&activo=neq.false&order=nombre.asc')||[];
-    EMPLEADOS=data;
-  }
-}
-
-function renderEmpleados(){
-  const s=(document.getElementById('empSearch')?.value||'').toLowerCase();
-  const l=document.getElementById('empFiltLocal')?.value||'';
-  const f=EMPLEADOS.filter(e=>(!s||e.nombre.toLowerCase().includes(s))&&(!l||e.local===l));
-  const tb=document.getElementById('empTbody');
-  if(!f.length){tb.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin empleados</td></tr>`;return;}
-  tb.innerHTML=f.map(e=>`<tr>
-    <td><strong>${e.apellido||e.nombre}</strong>${e.nombre_p?`<br><small style='color:var(--gray)'>${e.nombre_p}</small>`:''}</td>
-    <td>${LOCAL_LABELS[e.local]||e.local||'—'}</td>
-    <td>${e.sector||'—'}</td>
-    <td>${e.categoria||'—'}</td>
-    <td>${e.telefono||'—'}</td>
-    <td style='display:flex;gap:4px'><button class='abtn ao' style='padding:4px 8px;font-size:11px' onclick='editEmp(${e.id})'>✏️</button><button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button></td>
-  </tr>`).join('');
-}
-window.renderEmpleados=renderEmpleados;
-
-const CARGOS_POR_SECTOR={
-  'COCINA':[
-    'CHEF EJECUTIVO','SOUS CHEF','ASESOR SOUS CHEF','LIDER DE COCINA','CAPITAN DE COCINA',
-    'COCINERO SENIOR','COCINERO','BACHERO SENIOR','BACHERO','GERENTE DE AREA','EVENTUAL','OTRO'
-  ],
-  'SALA':[
-    'ENCARGADO DE LOCAL','JEFE DE OPERACIONES','LIDER SALA','LIDER DE SALA','CAPITAN DE CAMAREROS',
-    'JEFE SALA TRAP','CAMARERO SENIOR','CAMARERO','AYUDANTE DE SALA','GESTION DE RESERVAS',
-    'BARTENDER SOMMELIER','GERENTE DE AREA','EVENTUAL','OTRO'
-  ],
-  'CAVA':[
-    'JEFE DE BEBIDAS','SOMM SENIOR','SOMM','SOMMELIER','BARTENDER SOMMELIER',
-    'GERENTE DE AREA','EVENTUAL','OTRO'
-  ],
-  'ORDENANZA':[
-    'JEFE DE ORDENANZA','ORDENANZA SENIOR','ORDENANZA','GERENTE DE AREA','EVENTUAL','OTRO'
-  ],
-  'SEGURIDAD':[
-    'JEFE DE SEGURIDAD','SEGURIDAD','GERENTE DE AREA','EVENTUAL','OTRO'
-  ],
-  'ADMINISTRACION':[
-    'GERENTE DE ADMINISTRACION','JEFE DE COMPRAS','TESORERO','LOGISTICA',
-    'ADMINISTRATIVO','ADMINISTRATIVO PARTIME','GERENTE DE AREA','OTRO'
-  ],
-  'GERENCIA':[
-    'GERENTE GENERAL','GERENTE DE SERVICIO','GERENTE DE GASTRONOMIA',
-    'GERENTE DE ADMINISTRACION','GERENTE DE MARKETING','GERENTE DE AREA','OTRO'
-  ],
-};
-
-function actualizarCargos(){
+// ── COLABORADORES ─────────────────────────────────
+window.actualizarCargos=function(){
   const sector=document.getElementById('eSector').value;
   const sel=document.getElementById('eCategoria');
   const cur=sel.value;
@@ -897,83 +832,181 @@ function actualizarCargos(){
   sel.innerHTML='<option value="">Seleccionar cargo...</option>'+
     cargos.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c.charAt(0)+c.slice(1).toLowerCase()}</option>`).join('');
   toggleOtroCargo();
-}
-window.actualizarCargos=actualizarCargos;
-
-function toggleOtroCargo(){
+};
+window.toggleOtroCargo=function(){
   const v=document.getElementById('eCategoria').value;
   document.getElementById('otroCargoWrap').style.display=v==='OTRO'?'block':'none';
+};
+async function loadEmpleados(){
+  const data=await api('empleados?select=*&activo=neq.false&order=apellido.asc,nombre.asc')||[];
+  EMPLEADOS=data;renderEmpleados();
 }
-window.toggleOtroCargo=toggleOtroCargo;
-
+async function loadEmpleadosData(){
+  if(!EMPLEADOS.length){const d=await api('empleados?select=*&activo=neq.false&order=apellido.asc')||[];EMPLEADOS=d;}
+}
+function renderEmpleados(){
+  const s=(document.getElementById('empSearch')?.value||'').toLowerCase();
+  const l=document.getElementById('empFiltLocal')?.value||'';
+  const f=EMPLEADOS.filter(e=>(!s||(e.apellido||e.nombre||'').toLowerCase().includes(s))&&(!l||e.local===l));
+  const tb=document.getElementById('empTbody');
+  if(!f.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores</td></tr>`;return;}
+  tb.innerHTML=f.map(e=>`<tr>
+    <td><strong>${e.apellido||e.nombre||'—'}</strong></td>
+    <td>${e.nombre_p||'—'}</td>
+    <td>${LOCAL_LABELS[e.local]||e.local||'—'}</td>
+    <td>${e.sector||'—'}</td>
+    <td>${e.categoria||'—'}</td>
+    <td>${e.telefono||'—'}</td>
+    <td style="display:flex;gap:4px">
+      <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editEmp(${e.id})">✏️</button>
+      <button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+window.renderEmpleados=renderEmpleados;
 function openEmpModal(){
   eEmpId=null;
   document.getElementById('empModalTitle').textContent='Nuevo Colaborador';
-  ['eNombre','eOtroCargo'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('eTel').value='';
+  ['eApellido','eNombreP','eOtroCargo','eTel'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('eFechaNac').value='';
+  document.getElementById('eLocal').value='2-AZAFRAN';
+  document.getElementById('eSector').value='COCINA';
   document.getElementById('otroCargoWrap').style.display='none';
+  document.getElementById('eCrearUser').checked=true;
   actualizarCargos();
   openOv('ovEmp');
 }
 window.openEmpModal=openEmpModal;
-
 function editEmp(id){
   const e=EMPLEADOS.find(x=>x.id===id);if(!e)return;
   eEmpId=id;
   document.getElementById('empModalTitle').textContent='Editar Colaborador';
-  // Split nombre into apellido + nombre
-  const partes=(e.nombre||'').split(' ');
-  const mitad=Math.ceil(partes.length/2);
-  document.getElementById('eApellido').value=e.apellido||(partes.length>1?partes.slice(0,mitad).join(' '):'');
-  document.getElementById('eNombreP').value=e.nombre_p||(partes.length>1?partes.slice(mitad).join(' '):e.nombre||'');
-  document.getElementById('eLocal').value=e.local||'1-AZUCA';
+  document.getElementById('eApellido').value=e.apellido||'';
+  document.getElementById('eNombreP').value=e.nombre_p||'';
+  document.getElementById('eLocal').value=e.local||'2-AZAFRAN';
   document.getElementById('eSector').value=e.sector||'COCINA';
   actualizarCargos();
-  // Set cargo
   const sel=document.getElementById('eCategoria');
   const opts=[...sel.options].map(o=>o.value);
   if(opts.includes(e.categoria)){sel.value=e.categoria;document.getElementById('otroCargoWrap').style.display='none';}
   else{sel.value='OTRO';document.getElementById('otroCargoWrap').style.display='block';document.getElementById('eOtroCargo').value=e.categoria||'';}
   document.getElementById('eTel').value=e.telefono||'';
   document.getElementById('eFechaNac').value=e.fecha_nac||'';
+  document.getElementById('eCrearUser').checked=false;
   openOv('ovEmp');
 }
 window.editEmp=editEmp;
-
 window.guardarEmpleado=async function(){
   const apellido=document.getElementById('eApellido').value.trim();
   const nombreP=document.getElementById('eNombreP').value.trim();
   if(!apellido){toast('Ingresá el apellido');return;}
-  const nombre=apellido+(nombreP?' '+nombreP:'');
   const catSel=document.getElementById('eCategoria').value;
   const cat=catSel==='OTRO'?document.getElementById('eOtroCargo').value.trim():catSel;
-  const data={
-    nombre,
-    apellido,
-    nombre_p:nombreP||null,
-    local:document.getElementById('eLocal').value,
-    sector:document.getElementById('eSector').value,
-    categoria:cat,
+  const nombre=apellido+(nombreP?' '+nombreP:'');
+  const data={nombre,apellido,nombre_p:nombreP||null,local:document.getElementById('eLocal').value,
+    sector:document.getElementById('eSector').value,categoria:cat,
     telefono:document.getElementById('eTel').value.trim()||null,
-    fecha_nac:document.getElementById('eFechaNac').value||null,
-    activo:true
-  };
-  if(eEmpId){
-    await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);
-    toast('Colaborador actualizado ✓');
-  } else {
-    await api('empleados','POST',data);
-    toast('Colaborador creado ✓');
+    fecha_nac:document.getElementById('eFechaNac').value||null,activo:true};
+  let empId=eEmpId;
+  if(eEmpId){await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);toast('✓ Colaborador actualizado');}
+  else{const r=await api('empleados','POST',data);if(r&&r.length)empId=r[0].id;toast('✓ Colaborador creado');}
+  // Auto-create user
+  if(document.getElementById('eCrearUser').checked&&!eEmpId&&empId){
+    const u=(apellido.slice(0,3)+nombreP.slice(0,3)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const h=await sha256('azuca26');
+    await api('roster_usuarios','POST',{usuario:u,password_hash:h,nombre:apellido+(nombreP?' '+nombreP:''),perfil:'usuario',empleado_id:empId,activo:true});
+    toast(`✓ Usuario creado: ${u} / azuca26`);
   }
   closeOv('ovEmp');await loadEmpleados();
 };
-
 window.toggleActivo=async function(id,activo){
-  if(!confirm(activo?'¿Dar de baja este colaborador?':'¿Reactivar este colaborador?'))return;
+  if(!confirm(activo?'¿Dar de baja este colaborador?':'¿Reactivar?'))return;
   await api(`empleados?id=eq.${id}`,'PATCH',{activo:!activo});
-  toast(activo?'Empleado dado de baja':'Empleado reactivado');
+  toast(activo?'Dado de baja':'Reactivado');
   await loadEmpleados();
+};
+
+// ── USUARIOS ───────────────────────────────────────
+async function loadUsuarios(){
+  const data=await api('roster_usuarios?select=*&order=perfil.asc,nombre.asc')||[];
+  USUARIOS_R=data;renderUsuarios();
+  // Also populate empleados select
+  await loadEmpleadosData();
+  const sel=document.getElementById('uEmpleadoId');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Sin vincular</option>'+
+    EMPLEADOS.map(e=>`<option value="${e.id}" ${String(e.id)===cur?'selected':''}>${e.apellido||e.nombre}${e.nombre_p?' '+e.nombre_p:''}</option>`).join('');
+}
+function renderUsuarios(){
+  const tb=document.getElementById('userTbody');
+  if(!USUARIOS_R.length){tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--gray);padding:24px">Sin usuarios</td></tr>`;return;}
+  const PFIL={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'};
+  tb.innerHTML=USUARIOS_R.map(u=>`<tr>
+    <td><strong>${u.nombre}</strong></td>
+    <td><code>${u.usuario}</code></td>
+    <td><span class="badge b-${u.perfil}">${PFIL[u.perfil]||u.perfil}</span></td>
+    <td style="font-size:11px">${u.locales_editor?.map(l=>LOCAL_LABELS[l]||l).join(', ')||'—'}</td>
+    <td><span class="badge ${u.activo?'b-aprobado':'b-rechazado'}">${u.activo?'Activo':'Inactivo'}</span></td>
+    <td style="display:flex;gap:4px">
+      <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editUser(${u.id})">✏️</button>
+      <button class="bd" onclick="toggleUser(${u.id},${u.activo})">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+function openUserModal(){
+  eUserId=null;
+  document.getElementById('userModalTitle').textContent='Nuevo Usuario';
+  ['uNombre','uUsuario','uPass'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('uPerfil').value='usuario';
+  document.getElementById('uEmpleadoId').value='';
+  document.querySelectorAll('.locales-check input').forEach(cb=>cb.checked=false);
+  toggleLocalesEditor();
+  openOv('ovUser');
+}
+window.openUserModal=openUserModal;
+function editUser(id){
+  const u=USUARIOS_R.find(x=>x.id===id);if(!u)return;
+  eUserId=id;
+  document.getElementById('userModalTitle').textContent='Editar Usuario';
+  document.getElementById('uNombre').value=u.nombre||'';
+  document.getElementById('uUsuario').value=u.usuario||'';
+  document.getElementById('uPass').value='';
+  document.getElementById('uPerfil').value=u.perfil||'usuario';
+  document.getElementById('uEmpleadoId').value=u.empleado_id||'';
+  document.querySelectorAll('.locales-check input').forEach(cb=>{cb.checked=(u.locales_editor||[]).includes(cb.value);});
+  toggleLocalesEditor();
+  openOv('ovUser');
+}
+window.editUser=editUser;
+window.toggleLocalesEditor=function(){
+  const p=document.getElementById('uPerfil').value;
+  document.getElementById('localesEditorWrap').style.display=p==='editor'?'block':'none';
+};
+window.guardarUsuario=async function(){
+  const nombre=document.getElementById('uNombre').value.trim();
+  const usuario=document.getElementById('uUsuario').value.trim().toLowerCase();
+  const pass=document.getElementById('uPass').value;
+  const perfil=document.getElementById('uPerfil').value;
+  const empId=document.getElementById('uEmpleadoId').value||null;
+  if(!nombre||!usuario){toast('Completá nombre y usuario');return;}
+  const locales=[...document.querySelectorAll('.locales-check input:checked')].map(cb=>cb.value);
+  const data={nombre,usuario,perfil,locales_editor:locales.length?locales:null,empleado_id:empId?parseInt(empId):null,activo:true};
+  if(pass){data.password_hash=await sha256(pass);}
+  if(eUserId){
+    await api(`roster_usuarios?id=eq.${eUserId}`,'PATCH',data);
+    toast('✓ Usuario actualizado');
+  } else {
+    if(!pass){toast('Ingresá una contraseña');return;}
+    await api('roster_usuarios','POST',data);
+    toast('✓ Usuario creado');
+  }
+  closeOv('ovUser');await loadUsuarios();
+};
+window.toggleUser=async function(id,activo){
+  if(id===CU.id){toast('No podés desactivar tu propio usuario');return;}
+  await api(`roster_usuarios?id=eq.${id}`,'PATCH',{activo:!activo});
+  toast(activo?'Usuario desactivado':'Usuario activado');
+  await loadUsuarios();
 };
 
 checkSession();
