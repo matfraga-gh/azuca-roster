@@ -233,7 +233,7 @@ function renderRosterTable(puedeEditar){
         if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-off">OFF</span>${cmt}</div></td>`;
         if(t&&t.es_flex){
           const horaTxt=t.hora_entrada?`<div class="turno-flex-hora">${t.hora_entrada.slice(0,5)}</div>`:'';
-          return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-flex">🔄 FLEX</span>${horaTxt}${cmt}</div></td>`;
+          return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-flex">FLEX</span>${horaTxt}${cmt}</div></td>`;
         }
         if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
         return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
@@ -331,7 +331,7 @@ async function renderMiSemana(emp){
     const t=turnos[dia];const esOff=t?.es_off;const esFlex=t?.es_flex;
     let txt;
     if(esOff)txt='OFF';
-    else if(esFlex)txt=t?.hora_entrada?`🔄 FLEX ${t.hora_entrada.slice(0,5)}`:'🔄 FLEX';
+    else if(esFlex)txt=t?.hora_entrada?`FLEX ${t.hora_entrada.slice(0,5)}`:'FLEX';
     else txt=t?.hora_entrada?t.hora_entrada.slice(0,5):'—';
     const inc=incPorDia[dia];
     const dot=inc?`<span class="inc-dot ${inc.estado}" title="Tu incidencia (${inc.estado==='pendiente'?'pendiente':'procesada'})" onclick="verIncidencia(${inc.id})"></span>`:'';
