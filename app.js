@@ -43,13 +43,28 @@ function formatSemana(l){const d=diasDeSemana(l);return `Semana del ${fmt(d[0])}
 
 // ── PERFIL ───────────────────────────────────────
 function esMaster(){return CU?.perfil==='master';}
-function esDiaPasado(dia){
-  // Master puede editar cualquier día
+function esDiaPasado(dia,turno){
+  // Master puede editar cualquier día (incluso pasados)
   if(esMaster())return false;
   // Comparar día (YYYY-MM-DD) contra hoy local
+  const ahora=new Date();
+  const hoyStr=`${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}-${String(ahora.getDate()).padStart(2,'0')}`;
+  // Si es de un día anterior, está bloqueado siempre
+  if(dia<hoyStr)return true;
+  // Si es de hoy, ver si ya pasó la hora del turno + 30 min
+  if(dia===hoyStr&&turno&&turno.hora_entrada&&!turno.es_off&&!turno.es_flex){
+    const [h,m]=turno.hora_entrada.split(':').map(Number);
+    const limite=new Date(ahora);
+    limite.setHours(h,m+30,0,0); // hora del turno + 30 min
+    if(ahora>limite)return true;
+  }
+  // Día futuro o día actual con hora aún no pasada (o flex/off/sin hora) → editable
+  return false;
+}
+function esHoy(dia){
   const hoy=new Date();
   const hoyStr=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
-  return dia<hoyStr;
+  return dia===hoyStr;
 }
 function esEditorPerfil(){return CU?.perfil==='master'||CU?.perfil==='editor';}
 function puedeEditarLocal(local){
@@ -208,7 +223,7 @@ function renderRosterTable(puedeEditar){
   const emps=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
   document.getElementById('rosterHead').innerHTML=`<tr>
     <th class="emp-col">Colaborador</th>
-    ${dias.map((d,i)=>`<th>${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}</small></th>`).join('')}
+    ${dias.map((d,i)=>`<th class="${esHoy(d)?'th-hoy':''}">${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}${esHoy(d)?' · HOY':''}</small></th>`).join('')}
   </tr>`;
   if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores para este local</td></tr>`;return;}
   document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
@@ -221,22 +236,24 @@ function renderRosterTable(puedeEditar){
       </td>
       ${dias.map(dia=>{
         const key=`${emp.id}_${dia}`;const t=TURNOS_MAP[key];
-        const pasado=esDiaPasado(dia);
+        const pasado=esDiaPasado(dia,t);
+        const hoy=esHoy(dia);
         const editable=puedeEditar&&!pasado;
         const onclick=editable?`onclick="editTurno(${emp.id},'${dia}')"` :'';
-        const cls=`turno-cell${editable?'':' readonly'}${pasado?' pasado':''}`;
-        const tip=pasado?' title="Día pasado - no editable"':'';
+        const cls=`turno-cell${editable?'':' readonly'}${pasado?' pasado':''}${hoy?' hoy':''}`;
+        const tip=pasado?' title="Turno cerrado - ya pasó la hora"':'';
+        const tdCls=hoy?' class="td-hoy"':'';
         const cmt=t?.comentario?`<div class="turno-comment">💬 ${esc(t.comentario)}</div>`:'';
         // Punto de incidencia (más reciente del día)
         const inc=INC_MAP[`${emp.id}_${dia}`];
         const dot=inc?`<span class="inc-dot ${inc.estado}" title="Incidencia: ${inc.estado}" onclick="event.stopPropagation();verIncidencia(${inc.id})"></span>`:'';
-        if(t&&t.es_off)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-off">OFF</span>${cmt}</div></td>`;
+        if(t&&t.es_off)return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-off">OFF</span>${cmt}</div></td>`;
         if(t&&t.es_flex){
           const horaTxt=t.hora_entrada?`<div class="turno-flex-hora">${t.hora_entrada.slice(0,5)}</div>`:'';
-          return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-flex">FLEX</span>${horaTxt}${cmt}</div></td>`;
+          return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-flex">FLEX</span>${horaTxt}${cmt}</div></td>`;
         }
-        if(t&&t.hora_entrada)return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
-        return`<td><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
+        if(t&&t.hora_entrada)return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
+        return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
     </tr>`).join('');
 }
@@ -248,8 +265,8 @@ window.guardarCommentGeneral=async function(){
 
 // ── TURNO ─────────────────────────────────────────
 window.editTurno=function(empId,dia){
-  if(esDiaPasado(dia)){toast('No se pueden editar días pasados');return;}
   const t=TURNOS_MAP[`${empId}_${dia}`];
+  if(esDiaPasado(dia,t)){toast('Turno cerrado - ya pasó la hora');return;}
   const emp=EMPLEADOS.find(e=>e.id===empId);
   document.getElementById('turnoTitle').textContent=`${emp?.apellido||emp?.nombre||''} — ${fmt(dia)}`;
   document.getElementById('turnoEmpId').value=empId;
@@ -329,15 +346,17 @@ async function renderMiSemana(emp){
   }
   document.getElementById('miSemanaGrid').innerHTML=dias.map((dia,i)=>{
     const t=turnos[dia];const esOff=t?.es_off;const esFlex=t?.es_flex;
+    const hoy=esHoy(dia);
+    const pasado=esDiaPasado(dia,t);
     let txt;
     if(esOff)txt='OFF';
     else if(esFlex)txt=t?.hora_entrada?`FLEX ${t.hora_entrada.slice(0,5)}`:'FLEX';
     else txt=t?.hora_entrada?t.hora_entrada.slice(0,5):'—';
     const inc=incPorDia[dia];
     const dot=inc?`<span class="inc-dot ${inc.estado}" title="Tu incidencia (${inc.estado==='pendiente'?'pendiente':'procesada'})" onclick="verIncidencia(${inc.id})"></span>`:'';
-    return`<div class="dia-card ${esOff?'off':''}" style="position:relative">
+    return`<div class="dia-card ${esOff?'off':''} ${hoy?'hoy':''} ${pasado?'pasado':''}" style="position:relative">
       ${dot}
-      <div class="dia-nombre">${DIAS[i]}</div>
+      <div class="dia-nombre">${DIAS[i]}${hoy?' · HOY':''}</div>
       <div class="dia-fecha">${fmt(dia)}</div>
       <div class="dia-hora">${txt}</div>
       ${t?.comentario?`<div class="dia-comment">💬 ${esc(t.comentario)}</div>`:''}
@@ -351,7 +370,10 @@ window.cambiarSemanaEmp=cambiarSemanaEmp;
 
 // ── INCIDENCIAS ───────────────────────────────────
 window.openIncidenciaModal=function(){
-  document.getElementById('incFecha').value=new Date().toISOString().split('T')[0];
+  const hoy=new Date().toISOString().split('T')[0];
+  const inp=document.getElementById('incFecha');
+  inp.value=hoy;
+  inp.min=hoy;  // No permite elegir días pasados desde el datepicker
   document.getElementById('incDesc').value='';
   openOv('ovIncidencia');
 };
@@ -360,8 +382,22 @@ window.guardarIncidencia=async function(){
   const fecha=document.getElementById('incFecha').value;
   const desc=document.getElementById('incDesc').value.trim();
   if(!fecha){toast('Elegí una fecha');return;}
+  // Validar que no sea día pasado
+  const hoy=new Date().toISOString().split('T')[0];
+  if(fecha<hoy){toast('No se pueden reportar incidencias de días pasados');return;}
   if(!desc){toast('Describí la incidencia');return;}
   if(!CU.empleado_id){toast('Tu usuario no está vinculado a un colaborador. Pedile al admin que lo configure.');return;}
+  // Si la incidencia es para HOY, chequear si el turno ya está cerrado (hora + 30 min)
+  if(fecha===hoy){
+    const turnoHoy=await api(`roster_turnos?empleado_id=eq.${CU.empleado_id}&dia=eq.${hoy}&select=hora_entrada,es_off,es_flex&limit=1`);
+    if(turnoHoy&&turnoHoy.length&&turnoHoy[0].hora_entrada&&!turnoHoy[0].es_off&&!turnoHoy[0].es_flex){
+      const ahora=new Date();
+      const [h,m]=turnoHoy[0].hora_entrada.split(':').map(Number);
+      const limite=new Date(ahora);
+      limite.setHours(h,m+30,0,0);
+      if(ahora>limite){toast('Ya pasó la hora de tu turno + 30 min, no se puede reportar');return;}
+    }
+  }
   await api('incidencias','POST',{empleado_id:CU.empleado_id,fecha,tipo,descripcion:desc,estado:'pendiente'});
   closeOv('ovIncidencia');toast('✓ Incidencia enviada');
 };
@@ -870,7 +906,7 @@ window.aplicarTurnoEst=async function(){
   const existentes=Object.keys(TURNOS_MAP).filter(k=>{
     if(!k.startsWith(empId+'_'))return false;
     const dia=k.split('_')[1];
-    return !esDiaPasado(dia);
+    return !esDiaPasado(dia,TURNOS_MAP[k]);
   });
   if(existentes.length>0){
     if(!confirm(`Ya hay turnos cargados para esta semana. ¿Reemplazarlos con "${t.nombre}"?`))return;
@@ -893,15 +929,16 @@ window.aplicarTurnoEst=async function(){
     }
   }
   
-  // Insert 7 days sequentially (salteando días pasados)
+  // Insert 7 days sequentially (salteando días pasados o ya cerrados por hora)
   const dias=diasDeSemana(SEMANA_ACTUAL);
   for(let i=0;i<7;i++){
     const dKey=DIAS_TE[i];
     const hora=t[dKey]||null;
     const flex=!!t[dKey+'_flex'];
     const dia=dias[i];
-    if(esDiaPasado(dia))continue;
-    // Si no hay hora y no es flex → es OFF
+    // Construir un turno hipotético para chequear si ya está cerrado por hora
+    const turnoHipotetico={hora_entrada:hora,es_off:!flex&&hora===null,es_flex:flex};
+    if(esDiaPasado(dia,turnoHipotetico))continue;
     const esOff=!flex&&hora===null;
     const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,es_flex:flex,hora_entrada:hora,comentario:null};
     const r=await api('roster_turnos','POST',data);
@@ -914,5 +951,50 @@ window.aplicarTurnoEst=async function(){
 };
 
 // ── INIT ──────────────────────────────────────────
+// ── RELOJ EN HEADERS ──────────────────────────────
+const DIAS_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MESES_SHORT=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtClockNow(){
+  const d=new Date();
+  const dn=DIAS_SHORT[d.getDay()];
+  const dia=d.getDate();
+  const mes=MESES_SHORT[d.getMonth()];
+  const hh=String(d.getHours()).padStart(2,'0');
+  const mm=String(d.getMinutes()).padStart(2,'0');
+  return `${dn}. ${dia} ${mes} · ${hh}:${mm}`;
+}
+function injectClocks(){
+  // En cada app-hdr, asegurar que tenga un span de reloj
+  document.querySelectorAll('.app-hdr').forEach(hdr=>{
+    if(!hdr.querySelector('.app-clock')){
+      const left=hdr.querySelector('div');
+      if(left){
+        const c=document.createElement('div');
+        c.className='app-clock';
+        left.appendChild(c);
+      }
+    }
+  });
+  // En el dashboard
+  if(document.getElementById('vDash')&&!document.getElementById('dashClock')){
+    const dashHdr=document.querySelector('#vDash .dash-hdr');
+    if(dashHdr){
+      const c=document.createElement('div');
+      c.id='dashClock';
+      c.className='dash-clock';
+      dashHdr.appendChild(c);
+    }
+  }
+  updateClocks();
+}
+function updateClocks(){
+  const txt=fmtClockNow();
+  document.querySelectorAll('.app-clock').forEach(el=>{el.textContent=txt;});
+  const dc=document.getElementById('dashClock');
+  if(dc)dc.textContent=txt;
+}
+
 checkSession();
+injectClocks();
+setInterval(updateClocks,60000);
 })();
