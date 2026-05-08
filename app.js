@@ -36,7 +36,8 @@ async function sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEn
 function toast(m,d=3000){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 function esc(s){if(s==null)return '';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmt(d){if(!d)return '';const dt=new Date(d+'T12:00:00');return `${dt.getDate()}-${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]}`;}
-function getLunes(d){const dt=new Date(d);const day=dt.getDay();const diff=day===0?-6:1-day;dt.setDate(dt.getDate()+diff);return dt.toISOString().split('T')[0];}
+function hoyStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function getLunes(d){const dt=new Date(d+'T12:00:00');const day=dt.getDay();const diff=day===0?-6:1-day;dt.setDate(dt.getDate()+diff);return dt.toISOString().split('T')[0];}
 function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
 function diasDeSemana(l){return Array.from({length:7},(_,i)=>addDays(l,i));}
 function formatSemana(l){const d=diasDeSemana(l);return `Semana del ${fmt(d[0])} al ${fmt(d[6])}`;}
@@ -46,13 +47,12 @@ function esMaster(){return CU?.perfil==='master';}
 function esDiaPasado(dia,turno){
   // Master puede editar cualquier día (incluso pasados)
   if(esMaster())return false;
-  // Comparar día (YYYY-MM-DD) contra hoy local
   const ahora=new Date();
-  const hoyStr=`${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}-${String(ahora.getDate()).padStart(2,'0')}`;
+  const hoy=hoyStr();
   // Si es de un día anterior, está bloqueado siempre
-  if(dia<hoyStr)return true;
+  if(dia<hoy)return true;
   // Si es de hoy, ver si ya pasó la hora del turno + 30 min
-  if(dia===hoyStr&&turno&&turno.hora_entrada&&!turno.es_off&&!turno.es_flex){
+  if(dia===hoy&&turno&&turno.hora_entrada&&!turno.es_off&&!turno.es_flex){
     const [h,m]=turno.hora_entrada.split(':').map(Number);
     const limite=new Date(ahora);
     limite.setHours(h,m+30,0,0); // hora del turno + 30 min
@@ -61,11 +61,7 @@ function esDiaPasado(dia,turno){
   // Día futuro o día actual con hora aún no pasada (o flex/off/sin hora) → editable
   return false;
 }
-function esHoy(dia){
-  const hoy=new Date();
-  const hoyStr=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
-  return dia===hoyStr;
-}
+function esHoy(dia){return dia===hoyStr();}
 function esEditorPerfil(){return CU?.perfil==='master'||CU?.perfil==='editor';}
 function puedeEditarLocal(local){
   if(esMaster())return true;
@@ -171,7 +167,7 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 
 // ── ROSTER ────────────────────────────────────────
 async function initRoster(){
-  if(!SEMANA_ACTUAL)SEMANA_ACTUAL=getLunes(new Date().toISOString().split('T')[0]);
+  if(!SEMANA_ACTUAL)SEMANA_ACTUAL=getLunes(hoyStr());
   await loadEmpleados(false);
   // Only show locales this editor can see
   LOCALES_VISIBLES=Object.keys(LOCAL_LABELS).filter(l=>esMaster()||puedeEditarLocal(l));
@@ -323,7 +319,7 @@ window.borrarTurno=async function(){
 
 // ── MI SEMANA ─────────────────────────────────────
 async function initMiSemana(){
-  if(!SEMANA_EMP)SEMANA_EMP=getLunes(new Date().toISOString().split('T')[0]);
+  if(!SEMANA_EMP)SEMANA_EMP=getLunes(hoyStr());
   const bEl=document.getElementById('miSemBienvenido');
   if(bEl&&CU)bEl.textContent='Bienvenido/a, '+CU.nombre+'!';
   const emp=CU.empleado_id?(await api(`empleados?id=eq.${CU.empleado_id}&select=*`))?.[0]:null;
@@ -370,7 +366,7 @@ window.cambiarSemanaEmp=cambiarSemanaEmp;
 
 // ── INCIDENCIAS ───────────────────────────────────
 window.openIncidenciaModal=function(){
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=hoyStr();
   const inp=document.getElementById('incFecha');
   inp.value=hoy;
   inp.min=hoy;  // No permite elegir días pasados desde el datepicker
@@ -383,7 +379,7 @@ window.guardarIncidencia=async function(){
   const desc=document.getElementById('incDesc').value.trim();
   if(!fecha){toast('Elegí una fecha');return;}
   // Validar que no sea día pasado
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=hoyStr();
   if(fecha<hoy){toast('No se pueden reportar incidencias de días pasados');return;}
   if(!desc){toast('Describí la incidencia');return;}
   if(!CU.empleado_id){toast('Tu usuario no está vinculado a un colaborador. Pedile al admin que lo configure.');return;}
