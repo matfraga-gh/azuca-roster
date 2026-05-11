@@ -209,3 +209,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 /* Días pasados en Mi Semana */
 .dia-card.pasado{opacity:.6;background:repeating-linear-gradient(45deg,var(--white) 0 6px,rgba(0,0,0,.04) 6px 12px)}
 .dia-card.pasado.off{background:repeating-linear-gradient(45deg,var(--off-bg) 0 6px,rgba(0,0,0,.06) 6px 12px)}
+
+/* Botones de puntos (Propinas) */
+.pt-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--sand);background:var(--white);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gray);transition:all .15s;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.pt-btn:hover{border-color:var(--olive)}
+.pt-btn.active{background:var(--olive);color:var(--white);border-color:var(--olive)}
+.pt-btn:disabled{opacity:.5;cursor:not-allowed}

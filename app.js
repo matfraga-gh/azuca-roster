@@ -14,6 +14,7 @@ const CARGOS_POR_SECTOR={
 };
 
 let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null,LOCALES_VISIBLES=[],SECTOR_ACTUAL='';
+let PROP_MIS_LOCALES=[]; // Locales que el usuario actual puede editar para propinas
 let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null,INC_MAP={};
 let eEmpId=null,eUserId=null;
 
@@ -85,6 +86,18 @@ function puedeEditarLocal(local){
   if(!CU.locales_editor||!CU.locales_editor.length)return true;
   return CU.locales_editor.includes(local);
 }
+// Permisos de propinas (independiente del rol de roster)
+async function loadMisLocalesPropina(){
+  if(esMaster()){PROP_MIS_LOCALES=Object.keys(LOCAL_LABELS);return;}
+  if(!CU?.id){PROP_MIS_LOCALES=[];return;}
+  const r=await api(`propinas_editores?usuario_id=eq.${CU.id}&select=locales&limit=1`);
+  PROP_MIS_LOCALES=r&&r.length?(r[0].locales||[]):[];
+}
+function esEditorPropina(){return esMaster()||PROP_MIS_LOCALES.length>0;}
+function puedeEditarPropinaLocal(local){
+  if(esMaster())return true;
+  return PROP_MIS_LOCALES.includes(local);
+}
 
 // ── LOGIN ───────────────────────────────────────
 async function doLogin(){
@@ -102,9 +115,10 @@ window.doLogin=doLogin;
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function doLogout(){CU=null;sessionStorage.removeItem('az_roster_cu');showView('vLogin');}
 window.doLogout=doLogout;
-function afterLogin(){
+async function afterLogin(){
   const perfil={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'}[CU.perfil]||CU.perfil;
   document.getElementById('dashUser').textContent=`${CU.nombre} · ${perfil}`;
+  await loadMisLocalesPropina();
   buildDash();showView('vDash');
 }
 function checkSession(){const s=sessionStorage.getItem('az_roster_cu');if(s){CU=JSON.parse(s);afterLogin();}else showView('vLogin');}
@@ -115,6 +129,7 @@ function buildDash(){
   if(esEditorPerfil())cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
   if(esEditorPerfil())cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
+  if(esEditorPropina())cards.push({i:'💰',t:'Cargar Propinas',d:'Cierres de caja y reparto',a:"showView('vPropinas')"});
   if(esMaster()){
     cards.push({i:'👥',t:'Colaboradores',d:'Gestión del personal',a:"showView('vEmpleados')"});
     cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
@@ -134,6 +149,7 @@ function buildDash(){
 function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
   if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial'||id==='vPropinasConfig')&&!esMaster()){toast('Solo master');return;}
+  if((id==='vPropinas'||id==='vPropinasForm')&&!esEditorPropina()){toast('Sin permiso para propinas');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
   if(id==='vRoster')initRoster();
@@ -144,6 +160,7 @@ function showView(id){
   if(id==='vTurnos')showView_vTurnos();
   if(id==='vHistorial')loadHistorial();
   if(id==='vPropinasConfig')loadPropinasConfig();
+  if(id==='vPropinas')loadPropinas();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -1128,6 +1145,310 @@ function formatDetalleHistorial(accion,detalle){
   }catch(e){return '—';}
   return JSON.stringify(detalle).slice(0,80);
 }
+
+// ── PROPINAS: LISTA + FORMULARIO ──────────────────
+const PROP_DENOMINACIONES=[20000,10000,5000,2000,1000];
+const PROP_MONEDAS=[{c:'usd',l:'USD'},{c:'eur',l:'EUR'},{c:'brl',l:'BRL'}];
+let PROP_LOCAL_ACTUAL=null;
+let PROP_CIERRES=[];
+let PROP_CIERRE_EDIT=null; // null=nuevo; id=editando
+let PROP_COLABS_PUNTOS={}; // {empleado_id: 0 | 0.5 | 1}
+let PROP_CONFIG_CACHE=null;
+
+async function loadPropinas(){
+  // Recargar config (por si cambió el tipo de cambio)
+  const cfg=await api('propinas_config?order=id.desc&limit=1');
+  PROP_CONFIG_CACHE=cfg&&cfg.length?cfg[0]:{cambio_usd:0,cambio_eur:0,cambio_brl:0,porcentaje_admin:10};
+  if(!EMPLEADOS.length)await loadEmpleados();
+  if(!USUARIOS_R.length)USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  // Set local por default: el primero que el usuario puede editar
+  if(!PROP_LOCAL_ACTUAL&&PROP_MIS_LOCALES.length)PROP_LOCAL_ACTUAL=PROP_MIS_LOCALES[0];
+  buildPropLocalTabs();
+  await loadCierres();
+}
+window.loadPropinas=loadPropinas;
+
+function buildPropLocalTabs(){
+  const cont=document.getElementById('propLocalTabs');
+  if(!cont)return;
+  cont.innerHTML=PROP_MIS_LOCALES.map(l=>
+    `<div class="local-tab ${l===PROP_LOCAL_ACTUAL?'active':''}" onclick="cambiarLocalPropina('${l}')">${esc(LOCAL_LABELS[l]||l)}</div>`
+  ).join('');
+}
+window.cambiarLocalPropina=async function(l){
+  PROP_LOCAL_ACTUAL=l;
+  buildPropLocalTabs();
+  await loadCierres();
+};
+
+async function loadCierres(){
+  if(!PROP_LOCAL_ACTUAL){document.getElementById('propCierresTbody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:24px">Sin locales asignados</td></tr>';return;}
+  const r=await api(`propinas_cierres?local=eq.${encodeURIComponent(PROP_LOCAL_ACTUAL)}&order=fecha.desc&limit=50`)||[];
+  PROP_CIERRES=r;
+  renderCierres();
+}
+
+function renderCierres(){
+  const tb=document.getElementById('propCierresTbody');
+  if(!tb)return;
+  if(!PROP_CIERRES.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:24px">Sin cierres todavía. Apretá "+ Nuevo cierre" para empezar.</td></tr>';return;}
+  tb.innerHTML=PROP_CIERRES.map(c=>{
+    const usr=USUARIOS_R.find(u=>u.id===c.creado_por);
+    const turnoTxt=c.turno==='mediodia'?'🌤 Mediodía':'🌙 Noche';
+    const estadoBadge=c.pagado?'<span class="badge b-aprobado">✓ Pagado</span>':'<span class="badge b-procesada">Cerrado</span>';
+    const puedeEditar=esMaster(); // Una vez cargado, solo master edita
+    return `<tr>
+      <td style="font-weight:600">${fmt(c.fecha)}</td>
+      <td>${turnoTxt}</td>
+      <td style="font-size:12px">${esc(LOCAL_LABELS[c.local]||c.local)}</td>
+      <td>$${formatNumber(c.total_bruto)}</td>
+      <td style="font-weight:600">$${formatNumber(c.total_neto)}</td>
+      <td style="text-align:center">${c.total_puntos}</td>
+      <td style="font-size:11px;color:var(--gray)">${esc(usr?.nombre||'—')}</td>
+      <td>${estadoBadge}</td>
+      <td>${puedeEditar?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})">👁</button>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+function formatNumber(n){
+  if(n==null)return '0';
+  return Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+
+window.abrirNuevoCierre=async function(){
+  PROP_CIERRE_EDIT=null;
+  PROP_COLABS_PUNTOS={};
+  document.getElementById('pfTitulo').textContent='Nuevo cierre';
+  // Llenar select de locales (solo los que puede editar)
+  const sel=document.getElementById('pfLocal');
+  sel.innerHTML=PROP_MIS_LOCALES.map(l=>`<option value="${l}" ${l===PROP_LOCAL_ACTUAL?'selected':''}>${esc(LOCAL_LABELS[l]||l)}</option>`).join('');
+  sel.disabled=false;
+  document.getElementById('pfFecha').value=hoyStr();
+  document.getElementById('pfFecha').max=hoyStr(); // no permitir fechas futuras
+  document.getElementById('pfTurno').value='mediodia';
+  // Renderizar billetes y monedas
+  buildBilletesForm({});
+  buildExtranjeraForm({});
+  document.getElementById('pfTarjeta').value='';
+  document.getElementById('pfPorcAdminLbl').textContent=PROP_CONFIG_CACHE?.porcentaje_admin||10;
+  renderColaboradoresPunto();
+  recalcularPropina();
+  showView('vPropinasForm');
+};
+
+window.abrirCierre=async function(id){
+  const c=PROP_CIERRES.find(x=>x.id===id);
+  if(!c)return;
+  PROP_CIERRE_EDIT=c;
+  document.getElementById('pfTitulo').textContent=esMaster()?'Editar cierre':'Ver cierre (cerrado)';
+  const sel=document.getElementById('pfLocal');
+  sel.innerHTML=PROP_MIS_LOCALES.map(l=>`<option value="${l}" ${l===c.local?'selected':''}>${esc(LOCAL_LABELS[l]||l)}</option>`).join('');
+  sel.disabled=!esMaster();
+  document.getElementById('pfFecha').value=c.fecha;
+  document.getElementById('pfFecha').max=hoyStr();
+  document.getElementById('pfFecha').disabled=!esMaster();
+  document.getElementById('pfTurno').value=c.turno;
+  document.getElementById('pfTurno').disabled=!esMaster();
+  buildBilletesForm(c);
+  buildExtranjeraForm(c);
+  document.getElementById('pfTarjeta').value=c.monto_tarjeta||0;
+  document.getElementById('pfPorcAdminLbl').textContent=c.porcentaje_admin||10;
+  // Cargar asignaciones existentes
+  const asigs=await api(`propinas_asignaciones?cierre_id=eq.${id}&select=*`)||[];
+  PROP_COLABS_PUNTOS={};
+  asigs.forEach(a=>{PROP_COLABS_PUNTOS[a.empleado_id]=parseFloat(a.puntos);});
+  // Si no es master, deshabilitar todos los inputs
+  if(!esMaster())setTimeout(()=>{
+    document.querySelectorAll('#vPropinasForm input, #vPropinasForm select').forEach(el=>el.disabled=true);
+  },50);
+  renderColaboradoresPunto();
+  recalcularPropina();
+  showView('vPropinasForm');
+};
+
+function buildBilletesForm(c){
+  document.getElementById('pfBilletes').innerHTML=PROP_DENOMINACIONES.map(d=>{
+    const cant=c[`bil_${d}`]||0;
+    return `<div style="display:grid;grid-template-columns:90px 1fr 110px;gap:10px;align-items:center;padding:4px 0">
+      <div style="font-weight:600">$${formatNumber(d)}</div>
+      <input type="number" id="pfBil_${d}" min="0" value="${cant}" oninput="recalcularPropina()" style="padding:6px 8px;border:1px solid var(--sand);border-radius:6px">
+      <div style="text-align:right;font-size:12px;color:var(--gray)" id="pfBilSubt_${d}">$${formatNumber(cant*d)}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildExtranjeraForm(c){
+  document.getElementById('pfExtranjera').innerHTML=PROP_MONEDAS.map(m=>{
+    const monto=c[`monto_${m.c}`]||0;
+    const tc=c.id?(c[`tc_${m.c}`]||0):(PROP_CONFIG_CACHE?.[`cambio_${m.c}`]||0);
+    return `<div style="display:grid;grid-template-columns:60px 1fr 80px 110px;gap:10px;align-items:center;padding:4px 0">
+      <div style="font-weight:600">${m.l}</div>
+      <input type="number" id="pfMon_${m.c}" min="0" step="0.01" value="${monto}" oninput="recalcularPropina()" placeholder="Monto en ${m.l}" style="padding:6px 8px;border:1px solid var(--sand);border-radius:6px">
+      <div style="font-size:11px;color:var(--gray);text-align:center">× $${formatNumber(tc)}</div>
+      <div style="text-align:right;font-size:12px;color:var(--gray)" id="pfMonSubt_${m.c}">$${formatNumber(monto*tc)}</div>
+    </div>`;
+  }).join('');
+}
+
+window.renderColaboradoresPunto=function(){
+  const localSel=document.getElementById('pfLocal').value;
+  // Colaboradores del local (incluye multilocales) + eventuales del día
+  const fecha=document.getElementById('pfFecha').value;
+  let colabs=EMPLEADOS.filter(e=>e.activo!==false&&(e.local===localSel||e.es_multilocal===true));
+  // Filtro de sector si está seleccionado
+  const sectorFiltro=document.getElementById('pfSectorFiltro')?.value||'';
+  // Poblar dropdown de sector con los disponibles
+  const sectoresDisp=[...new Set(colabs.map(e=>e.sector).filter(Boolean))].sort();
+  const selSec=document.getElementById('pfSectorFiltro');
+  if(selSec){
+    selSec.innerHTML='<option value="">Todos los sectores</option>'+sectoresDisp.map(s=>`<option value="${esc(s)}" ${s===sectorFiltro?'selected':''}>${esc(s)}</option>`).join('');
+  }
+  if(sectorFiltro)colabs=colabs.filter(e=>e.sector===sectorFiltro);
+  // Ordenar por apellido
+  colabs.sort((a,b)=>(a.apellido||a.nombre||'').localeCompare(b.apellido||b.nombre||''));
+  const tb=document.getElementById('pfColabsTbody');
+  if(!colabs.length){tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:16px">Sin colaboradores</td></tr>';recalcularPropina();return;}
+  tb.innerHTML=colabs.map(e=>{
+    const puntos=PROP_COLABS_PUNTOS[e.id]??0;
+    const apellido=e.apellido||e.nombre||'';
+    const nombrep=e.nombre_p||'';
+    const multi=e.es_multilocal&&e.local!==localSel?` <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600">${esc(LOCAL_LABELS[e.local]||e.local)}</span>`:'';
+    return `<tr>
+      <td style="font-weight:600">${esc(apellido)}${nombrep?' '+esc(nombrep):''}${multi}<div style="font-size:11px;color:var(--gray);font-weight:400">${esc(e.sector||'')} · ${esc(e.categoria||'')}</div></td>
+      <td style="text-align:center">
+        <div style="display:inline-flex;gap:4px">
+          <button onclick="setPuntos(${e.id},0)" class="pt-btn ${puntos===0?'active':''}" data-pt="0">0</button>
+          <button onclick="setPuntos(${e.id},0.5)" class="pt-btn ${puntos===0.5?'active':''}" data-pt="0.5">½</button>
+          <button onclick="setPuntos(${e.id},1)" class="pt-btn ${puntos===1?'active':''}" data-pt="1">1</button>
+        </div>
+      </td>
+      <td style="text-align:right;font-weight:600" id="pfPropina_${e.id}">$0</td>
+    </tr>`;
+  }).join('');
+  recalcularPropina();
+};
+
+window.setPuntos=function(empId,p){
+  if(PROP_CIERRE_EDIT&&!esMaster())return; // bloqueo edición
+  PROP_COLABS_PUNTOS[empId]=p;
+  // Refrescar botones de esa fila
+  const row=document.querySelector(`#pfPropina_${empId}`)?.parentElement;
+  if(row){
+    row.querySelectorAll('.pt-btn').forEach(b=>{
+      const v=parseFloat(b.dataset.pt);
+      b.classList.toggle('active',v===p);
+    });
+  }
+  recalcularPropina();
+};
+
+window.recalcularPropina=function(){
+  // Total billetes pesos
+  let totalPesos=0;
+  PROP_DENOMINACIONES.forEach(d=>{
+    const cant=parseFloat(document.getElementById(`pfBil_${d}`)?.value)||0;
+    const subt=cant*d;
+    totalPesos+=subt;
+    const el=document.getElementById(`pfBilSubt_${d}`);
+    if(el)el.textContent='$'+formatNumber(subt);
+  });
+  document.getElementById('pfSubPesos').textContent='$'+formatNumber(totalPesos);
+  // Total moneda extranjera
+  let totalExt=0;
+  PROP_MONEDAS.forEach(m=>{
+    const monto=parseFloat(document.getElementById(`pfMon_${m.c}`)?.value)||0;
+    const tc=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT[`tc_${m.c}`]||0):(PROP_CONFIG_CACHE?.[`cambio_${m.c}`]||0);
+    const subt=monto*tc;
+    totalExt+=subt;
+    const el=document.getElementById(`pfMonSubt_${m.c}`);
+    if(el)el.textContent='$'+formatNumber(subt);
+  });
+  document.getElementById('pfSubExt').textContent='$'+formatNumber(totalExt);
+  // Tarjeta
+  const tarjeta=parseFloat(document.getElementById('pfTarjeta')?.value)||0;
+  // Bruto
+  const bruto=totalPesos+totalExt+tarjeta;
+  const porcAdmin=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT.porcentaje_admin||10):(PROP_CONFIG_CACHE?.porcentaje_admin||10);
+  const descAdmin=bruto*(porcAdmin/100);
+  const neto=bruto-descAdmin;
+  document.getElementById('pfTotalBruto').textContent='$'+formatNumber(bruto);
+  document.getElementById('pfDescAdmin').textContent='-$'+formatNumber(descAdmin);
+  document.getElementById('pfNeto').textContent='$'+formatNumber(neto);
+  // Puntos
+  const totalPuntos=Object.values(PROP_COLABS_PUNTOS).reduce((a,b)=>a+b,0);
+  document.getElementById('pfTotalPuntos').textContent=totalPuntos;
+  const valorPunto=totalPuntos>0?neto/totalPuntos:0;
+  document.getElementById('pfValorPunto').textContent='$'+formatNumber(valorPunto);
+  // Actualizar propina por colaborador
+  Object.entries(PROP_COLABS_PUNTOS).forEach(([id,pts])=>{
+    const el=document.getElementById(`pfPropina_${id}`);
+    if(el)el.textContent='$'+formatNumber(pts*valorPunto);
+  });
+};
+
+window.guardarCierrePropina=async function(){
+  if(PROP_CIERRE_EDIT&&!esMaster()){toast('Solo master puede editar cierres ya guardados');return;}
+  const local=document.getElementById('pfLocal').value;
+  const fecha=document.getElementById('pfFecha').value;
+  const turno=document.getElementById('pfTurno').value;
+  if(!fecha){toast('Elegí una fecha');return;}
+  if(fecha>hoyStr()){toast('No se pueden cargar fechas futuras');return;}
+  if(!puedeEditarPropinaLocal(local)){toast('Sin permiso para este local');return;}
+  // Si es nuevo, verificar que no exista ya
+  if(!PROP_CIERRE_EDIT){
+    const exist=await api(`propinas_cierres?local=eq.${encodeURIComponent(local)}&fecha=eq.${fecha}&turno=eq.${turno}&select=id,creado_por&limit=1`);
+    if(exist&&exist.length){
+      const usr=USUARIOS_R.find(u=>u.id===exist[0].creado_por);
+      toast(`Ya hay un cierre cargado para ese día/turno por ${usr?.nombre||'otro usuario'}`,5000);
+      return;
+    }
+  }
+  // Armar payload
+  const datos={local,fecha,turno};
+  PROP_DENOMINACIONES.forEach(d=>{datos[`bil_${d}`]=parseInt(document.getElementById(`pfBil_${d}`).value)||0;});
+  PROP_MONEDAS.forEach(m=>{
+    datos[`monto_${m.c}`]=parseFloat(document.getElementById(`pfMon_${m.c}`).value)||0;
+    datos[`tc_${m.c}`]=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT[`tc_${m.c}`]||0):(PROP_CONFIG_CACHE?.[`cambio_${m.c}`]||0);
+  });
+  datos.monto_tarjeta=parseFloat(document.getElementById('pfTarjeta').value)||0;
+  datos.porcentaje_admin=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT.porcentaje_admin||10):(PROP_CONFIG_CACHE?.porcentaje_admin||10);
+  // Calcular totales
+  let bruto=0;
+  PROP_DENOMINACIONES.forEach(d=>{bruto+=datos[`bil_${d}`]*d;});
+  PROP_MONEDAS.forEach(m=>{bruto+=datos[`monto_${m.c}`]*datos[`tc_${m.c}`];});
+  bruto+=datos.monto_tarjeta;
+  const descAdmin=bruto*(datos.porcentaje_admin/100);
+  const neto=bruto-descAdmin;
+  const totalPuntos=Object.values(PROP_COLABS_PUNTOS).reduce((a,b)=>a+b,0);
+  datos.total_bruto=bruto;
+  datos.total_neto=neto;
+  datos.total_puntos=totalPuntos;
+  // Guardar cierre
+  let cierreId;
+  if(PROP_CIERRE_EDIT){
+    datos.actualizado_en=new Date().toISOString();
+    const r=await api(`propinas_cierres?id=eq.${PROP_CIERRE_EDIT.id}`,'PATCH',datos);
+    if(r===null){toast('Error al actualizar el cierre');return;}
+    cierreId=PROP_CIERRE_EDIT.id;
+    // Borrar asignaciones viejas
+    await api(`propinas_asignaciones?cierre_id=eq.${cierreId}`,'DELETE');
+  }else{
+    datos.creado_por=CU.id;
+    const r=await api('propinas_cierres','POST',datos);
+    if(!r||!r.length){toast('Error al crear el cierre');return;}
+    cierreId=r[0].id;
+  }
+  // Insertar asignaciones (solo las con puntos > 0)
+  const valorPunto=totalPuntos>0?neto/totalPuntos:0;
+  const asigs=Object.entries(PROP_COLABS_PUNTOS).filter(([,p])=>p>0).map(([empId,p])=>({
+    cierre_id:cierreId,empleado_id:parseInt(empId),puntos:p,monto:p*valorPunto
+  }));
+  if(asigs.length){await api('propinas_asignaciones','POST',asigs);}
+  toast('✓ Cierre guardado');
+  PROP_LOCAL_ACTUAL=local;
+  showView('vPropinas');
+};
 
 // ── PROPINAS: CONFIGURACIÓN (Master) ──────────────
 let PROPINAS_CONFIG=null;

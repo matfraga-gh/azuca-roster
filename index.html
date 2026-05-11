@@ -447,6 +447,120 @@
   </div>
 </div>
 
+<!-- CARGAR PROPINAS (lista de cierres) -->
+<div id="vPropinas" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Propinas</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" onclick="abrirNuevoCierre()">+ Nuevo cierre</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Cierres de propina</h1>
+    <p class="psub">Últimos cierres registrados. Una vez guardados quedan cerrados (solo master puede modificar).</p>
+    <div class="local-tabs-row">
+      <div class="local-tabs" id="propLocalTabs"></div>
+    </div>
+    <div class="tw"><table class="tbl">
+      <thead><tr>
+        <th>Fecha</th>
+        <th>Turno</th>
+        <th>Local</th>
+        <th>Total Bruto</th>
+        <th>Neto</th>
+        <th>Puntos</th>
+        <th>Cargado por</th>
+        <th>Estado</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="propCierresTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- FORMULARIO NUEVO/EDITAR CIERRE -->
+<div id="vPropinasForm" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Cierre de Propina</div></div>
+    <div class="app-btns">
+      <button class="abtn ab" onclick="showView('vPropinas')">← Volver</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle" id="pfTitulo">Nuevo cierre</h1>
+
+    <!-- Encabezado: local + fecha + turno -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div class="frow">
+        <div class="fg"><label>Local</label>
+          <select id="pfLocal"></select>
+        </div>
+        <div class="fg"><label>Fecha</label>
+          <input type="date" id="pfFecha">
+        </div>
+        <div class="fg"><label>Turno</label>
+          <select id="pfTurno">
+            <option value="mediodia">🌤 Mediodía</option>
+            <option value="noche">🌙 Noche</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cash en pesos -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:10px;font-size:14px">💵 Cash en Pesos</div>
+      <div id="pfBilletes"></div>
+      <div style="text-align:right;font-size:13px;color:var(--gray);margin-top:8px">Subtotal pesos: <strong id="pfSubPesos" style="color:var(--dark)">$0</strong></div>
+    </div>
+
+    <!-- Moneda extranjera -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:10px;font-size:14px">💱 Moneda Extranjera</div>
+      <div id="pfExtranjera"></div>
+      <div style="text-align:right;font-size:13px;color:var(--gray);margin-top:8px">Subtotal extranjera: <strong id="pfSubExt" style="color:var(--dark)">$0</strong></div>
+    </div>
+
+    <!-- Tarjeta -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:10px;font-size:14px">💳 Tarjeta de Crédito (en pesos)</div>
+      <input type="number" id="pfTarjeta" min="0" step="0.01" placeholder="0.00" oninput="recalcularPropina()" style="width:100%;padding:10px;font-size:16px;border:1px solid var(--sand);border-radius:8px;box-sizing:border-box">
+    </div>
+
+    <!-- Resumen / cálculo -->
+    <div style="background:var(--cream);border:2px solid var(--olive);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-weight:600;margin-bottom:10px;font-size:14px;color:var(--olive)">📊 Cálculo</div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>Total bruto:</span><strong id="pfTotalBruto">$0</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;color:#9C2A1C"><span>Descuento admin (<span id="pfPorcAdminLbl">10</span>%):</span><strong id="pfDescAdmin">-$0</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--sand);margin-top:6px"><span style="font-weight:600">Neto a repartir:</span><strong id="pfNeto" style="color:var(--olive);font-size:16px">$0</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--gray)"><span>Total puntos:</span><span id="pfTotalPuntos">0</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--gray)"><span>Valor por punto:</span><strong id="pfValorPunto">$0</strong></div>
+    </div>
+
+    <!-- Colaboradores -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:600;font-size:14px">👥 Colaboradores</div>
+        <select id="pfSectorFiltro" onchange="renderColaboradoresPunto()" class="sector-filter" style="min-width:160px"></select>
+      </div>
+      <div class="tw"><table class="tbl" style="min-width:0">
+        <thead><tr>
+          <th>Colaborador</th>
+          <th style="text-align:center">Puntos</th>
+          <th style="text-align:right">Propina</th>
+        </tr></thead>
+        <tbody id="pfColabsTbody"></tbody>
+      </table></div>
+    </div>
+
+    <div class="ma">
+      <button class="btn bs" onclick="showView('vPropinas')">Cancelar</button>
+      <button class="btn bp" onclick="guardarCierrePropina()">💾 Guardar cierre</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIGURAR PROPINAS (Master) -->
 <div id="vPropinasConfig" class="view">
   <div class="app-hdr">
