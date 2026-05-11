@@ -128,6 +128,7 @@ function buildDash(){
   const cards=[];
   if(esEditorPerfil())cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
+  cards.push({i:'💰',t:'Mi Propina',d:'Ver mis propinas acumuladas',a:"showView('vMiPropina')"});
   if(esEditorPerfil())cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
   if(esEditorPropina())cards.push({i:'💰',t:'Cargar Propinas',d:'Cierres de caja y reparto',a:"showView('vPropinas')"});
   if(esMaster()){
@@ -161,6 +162,7 @@ function showView(id){
   if(id==='vHistorial')loadHistorial();
   if(id==='vPropinasConfig')loadPropinasConfig();
   if(id==='vPropinas')loadPropinas();
+  if(id==='vMiPropina')loadMiPropina();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -1145,6 +1147,79 @@ function formatDetalleHistorial(accion,detalle){
   }catch(e){return '—';}
   return JSON.stringify(detalle).slice(0,80);
 }
+
+// ── MI PROPINA (Colaborador) ──────────────────────
+async function loadMiPropina(){
+  const cont=document.getElementById('mpContenido');
+  if(!cont)return;
+  if(CU?.nombre)document.getElementById('mpBienvenido').textContent=`Mi Propina · ${CU.nombre}`;
+  // Si no tiene empleado_id, no puede mostrar nada
+  if(!CU?.empleado_id){
+    cont.innerHTML=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;color:var(--gray)">
+      Tu usuario no está vinculado a un colaborador.<br><span style="font-size:12px">Pedile al administrador que te vincule para ver tus propinas.</span>
+    </div>`;
+    return;
+  }
+  // Traer asignaciones del colaborador (con detalles del cierre)
+  // Solo las NO pagadas (pendientes de cobro)
+  const asigs=await api(`propinas_asignaciones?empleado_id=eq.${CU.empleado_id}&select=*,cierre:cierre_id(fecha,turno,local,pagado)&order=id.desc`)||[];
+  // Filtrar solo las pendientes
+  const pendientes=asigs.filter(a=>a.cierre&&!a.cierre.pagado&&a.monto>0);
+  if(!pendientes.length){
+    cont.innerHTML=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;color:var(--gray)">
+      <div style="font-size:32px;margin-bottom:8px">💰</div>
+      <div style="font-weight:600;color:var(--dark);margin-bottom:4px">No tenés propinas pendientes</div>
+      <div style="font-size:12px">Cuando se carguen propinas para vos, las vas a ver acá.</div>
+    </div>`;
+    return;
+  }
+  // Total general
+  const totalGral=pendientes.reduce((s,a)=>s+parseFloat(a.monto||0),0);
+  // Agrupar por local
+  const porLocal={};
+  pendientes.forEach(a=>{
+    const loc=a.cierre.local;
+    if(!porLocal[loc])porLocal[loc]={total:0,dias:[]};
+    porLocal[loc].total+=parseFloat(a.monto||0);
+    porLocal[loc].dias.push({
+      fecha:a.cierre.fecha,
+      turno:a.cierre.turno,
+      puntos:parseFloat(a.puntos),
+      monto:parseFloat(a.monto||0)
+    });
+  });
+  // Ordenar días dentro de cada local (más reciente primero)
+  Object.values(porLocal).forEach(l=>l.dias.sort((a,b)=>b.fecha.localeCompare(a.fecha)));
+  // Render
+  let html=`<div style="background:linear-gradient(135deg,var(--olive),var(--olive-l));color:var(--white);border-radius:16px;padding:24px;margin-bottom:20px;text-align:center;box-shadow:0 4px 16px rgba(92,107,58,.25)">
+    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-bottom:6px">Total pendiente de cobro</div>
+    <div style="font-size:36px;font-weight:700;letter-spacing:-1px">$${formatNumber(totalGral)}</div>
+    <div style="font-size:11px;opacity:.75;margin-top:6px">${pendientes.length} ${pendientes.length===1?'cierre':'cierres'} pendiente${pendientes.length===1?'':'s'}</div>
+  </div>`;
+  // Por local
+  Object.entries(porLocal).forEach(([loc,data])=>{
+    const turnoIcon={mediodia:'🌤',noche:'🌙'};
+    const turnoLbl={mediodia:'Mediodía',noche:'Noche'};
+    html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--sand-l);margin-bottom:10px">
+        <div style="font-weight:600;font-size:14px">📍 ${esc(LOCAL_LABELS[loc]||loc)}</div>
+        <div style="font-weight:700;color:var(--olive);font-size:16px">$${formatNumber(data.total)}</div>
+      </div>
+      ${data.dias.map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+          <div>
+            <span style="font-weight:600">${fmt(d.fecha)}</span>
+            <span style="color:var(--gray);margin-left:6px">${turnoIcon[d.turno]||''} ${turnoLbl[d.turno]||d.turno}</span>
+            <span style="font-size:11px;color:var(--gray);margin-left:8px">${d.puntos===1?'1 punto':d.puntos===0.5?'½ punto':d.puntos+' pts'}</span>
+          </div>
+          <div style="font-weight:600">$${formatNumber(d.monto)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  });
+  cont.innerHTML=html;
+}
+window.loadMiPropina=loadMiPropina;
 
 // ── PROPINAS: LISTA + FORMULARIO ──────────────────
 const PROP_DENOMINACIONES=[20000,10000,5000,2000,1000];
