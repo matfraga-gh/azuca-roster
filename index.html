@@ -50,7 +50,12 @@
       <div class="week-label" id="weekLabel"></div>
       <button class="week-btn" onclick="cambiarSemana(1)">Siguiente →</button>
     </div>
-    <div class="local-tabs" id="localTabs"></div>
+    <div class="local-tabs-row">
+      <div class="local-tabs" id="localTabs"></div>
+      <select id="sectorFilter" onchange="filtrarSector()" class="sector-filter">
+        <option value="">Todos los sectores</option>
+      </select>
+    </div>
     <div class="comment-general" id="commentGeneral" style="display:none">
       <span class="label">💬 Nota</span>
       <textarea id="commentGeneralTxt" placeholder="Comentario general de la semana para este local..." rows="2" onblur="guardarCommentGeneral()"></textarea>

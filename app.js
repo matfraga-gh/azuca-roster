@@ -13,7 +13,7 @@ const CARGOS_POR_SECTOR={
   'GERENCIA':['GERENTE GENERAL','GERENTE DE SERVICIO','GERENTE DE GASTRONOMIA','GERENTE DE ADMINISTRACION','GERENTE DE MARKETING','GERENTE DE AREA','OTRO'],
 };
 
-let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null,LOCALES_VISIBLES=[];
+let CU=null,EMPLEADOS=[],USUARIOS_R=[],SEMANA_ACTUAL=null,LOCAL_ACTUAL=null,LOCALES_VISIBLES=[],SECTOR_ACTUAL='';
 let TURNOS_MAP={},SEMANA_ID=null,SEMANA_OBJ=null,SEMANA_EMP=null,INC_MAP={};
 let eEmpId=null,eUserId=null;
 
@@ -182,7 +182,13 @@ function buildLocalTabs(){
 }
 window.cambiarLocal=async function(l){
   if(!puedeEditarLocal(l)){toast('Sin permiso para este local');return;}
-  LOCAL_ACTUAL=l;buildLocalTabs();await loadRoster();
+  LOCAL_ACTUAL=l;
+  SECTOR_ACTUAL=''; // reset filtro al cambiar de local
+  buildLocalTabs();await loadRoster();
+};
+window.filtrarSector=function(){
+  SECTOR_ACTUAL=document.getElementById('sectorFilter').value;
+  renderRosterTable(puedeEditarLocal(LOCAL_ACTUAL));
 };
 function cambiarSemana(n){SEMANA_ACTUAL=addDays(SEMANA_ACTUAL,n*7);loadRoster();}
 window.cambiarSemana=cambiarSemana;
@@ -216,12 +222,25 @@ async function loadRoster(){
 }
 function renderRosterTable(puedeEditar){
   const dias=diasDeSemana(SEMANA_ACTUAL);
-  const emps=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
+  // Empleados del local actual (todos, para poblar el dropdown)
+  const empsLocal=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
+  // Sectores únicos disponibles en este local
+  const sectoresDisponibles=[...new Set(empsLocal.map(e=>e.sector).filter(Boolean))].sort();
+  const selSector=document.getElementById('sectorFilter');
+  if(selSector){
+    const prev=SECTOR_ACTUAL;
+    // Si el sector previo ya no está disponible para este local, resetear
+    if(prev&&!sectoresDisponibles.includes(prev))SECTOR_ACTUAL='';
+    selSector.innerHTML='<option value="">Todos los sectores</option>'+
+      sectoresDisponibles.map(s=>`<option value="${esc(s)}" ${s===SECTOR_ACTUAL?'selected':''}>${esc(s)}</option>`).join('');
+  }
+  // Aplicar filtro de sector
+  const emps=SECTOR_ACTUAL?empsLocal.filter(e=>e.sector===SECTOR_ACTUAL):empsLocal;
   document.getElementById('rosterHead').innerHTML=`<tr>
     <th class="emp-col">Colaborador</th>
     ${dias.map((d,i)=>`<th class="${esHoy(d)?'th-hoy':''}">${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}${esHoy(d)?' · HOY':''}</small></th>`).join('')}
   </tr>`;
-  if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores para este local</td></tr>`;return;}
+  if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">${SECTOR_ACTUAL?'Sin colaboradores en este sector':'Sin colaboradores para este local'}</td></tr>`;return;}
   document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
     <tr>
       <td class="emp-cell">

@@ -63,7 +63,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .week-label{font-family:'Playfair Display',serif;font-size:18px;flex:1}
 .week-btn{border:1px solid var(--sand);background:var(--white);border-radius:8px;padding:7px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--dark)}
 .week-btn:hover{border-color:var(--olive);color:var(--olive)}
-.local-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.local-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.local-tabs-row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}
+.sector-filter{padding:7px 14px;border-radius:20px;border:1.5px solid var(--sand);background:var(--white);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gray);transition:all .2s;min-width:170px}
+.sector-filter:hover{border-color:var(--olive)}
+.sector-filter:focus{outline:none;border-color:var(--olive)}
 .local-tab{padding:7px 16px;border-radius:20px;border:1.5px solid var(--sand);background:var(--white);font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gray);transition:all .2s}
 .local-tab.active{background:var(--dark);border-color:var(--dark);color:var(--white)}
 
