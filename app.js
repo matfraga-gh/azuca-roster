@@ -120,6 +120,7 @@ function buildDash(){
     cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
     cards.push({i:'📋',t:'Turnos Estándar',d:'Plantillas de turnos semanales',a:"showView('vTurnos')"});
     cards.push({i:'📜',t:'Historial de cambios',d:'Registro de modificaciones (últimos 60 días)',a:"showView('vHistorial')"});
+    cards.push({i:'💰',t:'Configurar Propinas',d:'Tipo de cambio y editores de propinas',a:"showView('vPropinasConfig')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -132,7 +133,7 @@ function buildDash(){
 // ── VIEWS ─────────────────────────────────────────
 function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
-  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial')&&!esMaster()){toast('Solo master');return;}
+  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial'||id==='vPropinasConfig')&&!esMaster()){toast('Solo master');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
   if(id==='vRoster')initRoster();
@@ -142,6 +143,7 @@ function showView(id){
   if(id==='vUsuarios')loadUsuarios();
   if(id==='vTurnos')showView_vTurnos();
   if(id==='vHistorial')loadHistorial();
+  if(id==='vPropinasConfig')loadPropinasConfig();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -1126,6 +1128,133 @@ function formatDetalleHistorial(accion,detalle){
   }catch(e){return '—';}
   return JSON.stringify(detalle).slice(0,80);
 }
+
+// ── PROPINAS: CONFIGURACIÓN (Master) ──────────────
+let PROPINAS_CONFIG=null;
+let PROPINAS_EDITORES=[];
+let epEditandoId=null;
+
+async function loadPropinasConfig(){
+  // Carga la config (siempre debería existir 1 fila)
+  const cfg=await api('propinas_config?order=id.desc&limit=1');
+  if(cfg&&cfg.length){
+    PROPINAS_CONFIG=cfg[0];
+    document.getElementById('pcCambioUsd').value=PROPINAS_CONFIG.cambio_usd||'';
+    document.getElementById('pcCambioEur').value=PROPINAS_CONFIG.cambio_eur||'';
+    document.getElementById('pcCambioBrl').value=PROPINAS_CONFIG.cambio_brl||'';
+    document.getElementById('pcPorcAdmin').value=PROPINAS_CONFIG.porcentaje_admin||10;
+    if(PROPINAS_CONFIG.actualizado_en){
+      const dt=new Date(PROPINAS_CONFIG.actualizado_en);
+      const usr=PROPINAS_CONFIG.actualizado_por?USUARIOS_R.find(u=>u.id===PROPINAS_CONFIG.actualizado_por)?.nombre:null;
+      document.getElementById('pcUltAct').textContent=`Última actualización: ${dt.toLocaleString('es-AR')}${usr?' por '+usr:''}`;
+    }
+  }
+  await loadEditoresPropina();
+}
+
+window.guardarPropinasConfig=async function(){
+  const data={
+    cambio_usd:parseFloat(document.getElementById('pcCambioUsd').value)||0,
+    cambio_eur:parseFloat(document.getElementById('pcCambioEur').value)||0,
+    cambio_brl:parseFloat(document.getElementById('pcCambioBrl').value)||0,
+    porcentaje_admin:parseFloat(document.getElementById('pcPorcAdmin').value)||10,
+    actualizado_en:new Date().toISOString(),
+    actualizado_por:CU.id
+  };
+  if(PROPINAS_CONFIG&&PROPINAS_CONFIG.id){
+    const r=await api(`propinas_config?id=eq.${PROPINAS_CONFIG.id}`,'PATCH',data);
+    if(r===null){toast('Error al guardar');return;}
+  }else{
+    const r=await api('propinas_config','POST',data);
+    if(r&&r.length)PROPINAS_CONFIG=r[0];
+  }
+  toast('✓ Configuración guardada');
+  loadPropinasConfig();
+};
+
+async function loadEditoresPropina(){
+  // Trae todos los usuarios y la lista de editores ya asignados
+  if(!USUARIOS_R.length)USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  const editores=await api('propinas_editores?select=*')||[];
+  PROPINAS_EDITORES=editores;
+  renderEditoresPropina();
+}
+
+function renderEditoresPropina(){
+  const tb=document.getElementById('pcEditoresTbody');
+  if(!tb)return;
+  if(!PROPINAS_EDITORES.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:24px">Sin editores asignados todavía</td></tr>';return;}
+  tb.innerHTML=PROPINAS_EDITORES.map(ed=>{
+    const u=USUARIOS_R.find(x=>x.id===ed.usuario_id);
+    const locales=(ed.locales||[]).map(l=>esc(LOCAL_LABELS[l]||l)).join(', ')||'—';
+    return `<tr>
+      <td style="font-weight:600">${esc(u?.nombre||'(usuario eliminado)')}</td>
+      <td style="color:var(--gray)">${esc(u?.usuario||'—')}</td>
+      <td style="font-size:12px">${locales}</td>
+      <td><button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editEditorPropina(${ed.id})">✏️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+window.openEditorPropModal=function(){
+  epEditandoId=null;
+  document.getElementById('epTitle').textContent='Asignar editor de propinas';
+  document.getElementById('epBtnBorrar').style.display='none';
+  // Filtrar usuarios que NO sean ya editores
+  const idsExistentes=new Set(PROPINAS_EDITORES.map(e=>e.usuario_id));
+  const disponibles=USUARIOS_R.filter(u=>!idsExistentes.has(u.id));
+  document.getElementById('epUsuario').innerHTML=disponibles.map(u=>`<option value="${u.id}">${esc(u.nombre)} (${esc(u.usuario)})</option>`).join('');
+  document.getElementById('epUsuario').disabled=false;
+  buildEpLocales([]);
+  openOv('ovEditorProp');
+};
+
+window.editEditorPropina=function(id){
+  const ed=PROPINAS_EDITORES.find(x=>x.id===id);
+  if(!ed)return;
+  epEditandoId=id;
+  document.getElementById('epTitle').textContent='Editar editor de propinas';
+  document.getElementById('epBtnBorrar').style.display='';
+  const u=USUARIOS_R.find(x=>x.id===ed.usuario_id);
+  document.getElementById('epUsuario').innerHTML=`<option value="${u?.id||''}">${esc(u?.nombre||'')} (${esc(u?.usuario||'')})</option>`;
+  document.getElementById('epUsuario').disabled=true;
+  buildEpLocales(ed.locales||[]);
+  openOv('ovEditorProp');
+};
+
+function buildEpLocales(seleccionados){
+  document.getElementById('epLocales').innerHTML=Object.keys(LOCAL_LABELS).map(l=>{
+    const checked=seleccionados.includes(l)?'checked':'';
+    return `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px"><input type="checkbox" class="ep-local" value="${l}" ${checked} style="width:auto;margin:0">${esc(LOCAL_LABELS[l])}</label>`;
+  }).join('');
+}
+
+window.guardarEditorPropina=async function(){
+  const usuarioId=parseInt(document.getElementById('epUsuario').value);
+  if(!usuarioId){toast('Elegí un usuario');return;}
+  const locales=[...document.querySelectorAll('.ep-local:checked')].map(c=>c.value);
+  if(!locales.length){toast('Asigná al menos un local');return;}
+  const data={usuario_id:usuarioId,locales};
+  if(epEditandoId){
+    const r=await api(`propinas_editores?id=eq.${epEditandoId}`,'PATCH',data);
+    if(r===null){toast('Error al guardar');return;}
+  }else{
+    const r=await api('propinas_editores','POST',data);
+    if(!r||!r.length){toast('Error al crear');return;}
+  }
+  toast('✓ Editor guardado');
+  closeOv('ovEditorProp');
+  loadEditoresPropina();
+};
+
+window.borrarEditorPropina=async function(){
+  if(!epEditandoId)return;
+  if(!confirm('¿Quitar a este usuario como editor de propinas?'))return;
+  await api(`propinas_editores?id=eq.${epEditandoId}`,'DELETE');
+  toast('✓ Editor quitado');
+  closeOv('ovEditorProp');
+  loadEditoresPropina();
+};
 
 // ── INIT ──────────────────────────────────────────
 // ── RELOJ EN HEADERS ──────────────────────────────

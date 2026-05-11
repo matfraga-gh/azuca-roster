@@ -447,6 +447,72 @@
   </div>
 </div>
 
+<!-- CONFIGURAR PROPINAS (Master) -->
+<div id="vPropinasConfig" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Propinas</div></div>
+    <div class="app-btns">
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Configurar Propinas</h1>
+    <p class="psub">Tipo de cambio para conversión de moneda extranjera y asignación de editores responsables.</p>
+
+    <!-- Tipo de cambio -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:20px;margin-bottom:24px">
+      <div style="font-weight:600;margin-bottom:12px;font-size:14px">💱 Tipo de cambio (a pesos)</div>
+      <div class="frow">
+        <div class="fg"><label>USD</label><input type="number" id="pcCambioUsd" step="0.01" min="0" placeholder="0.00"></div>
+        <div class="fg"><label>EUR</label><input type="number" id="pcCambioEur" step="0.01" min="0" placeholder="0.00"></div>
+        <div class="fg"><label>BRL</label><input type="number" id="pcCambioBrl" step="0.01" min="0" placeholder="0.00"></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <div class="fg"><label>% Descuento administrativo</label><input type="number" id="pcPorcAdmin" step="0.1" min="0" max="100" placeholder="10.0"></div>
+        <div class="fg" style="align-self:end"><button class="btn bp" onclick="guardarPropinasConfig()" style="width:100%">Guardar configuración</button></div>
+      </div>
+      <div id="pcUltAct" style="font-size:11px;color:var(--gray);margin-top:6px"></div>
+    </div>
+
+    <!-- Editores de propinas -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:600;font-size:14px">👤 Editores de Propinas</div>
+        <button class="abtn ao" onclick="openEditorPropModal()">+ Asignar</button>
+      </div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:12px">Usuarios habilitados para cargar propinas en sus locales asignados.</p>
+      <div class="tw"><table class="tbl">
+        <thead><tr>
+          <th>Nombre</th>
+          <th>Usuario</th>
+          <th>Locales asignados</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="pcEditoresTbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Asignar editor de propinas -->
+<div class="overlay" id="ovEditorProp">
+  <div class="modal" style="max-width:500px">
+    <button class="mc" onclick="closeOv('ovEditorProp')">✕</button>
+    <h2 id="epTitle">Asignar editor de propinas</h2>
+    <div class="fg full"><label>Usuario</label>
+      <select id="epUsuario"></select>
+    </div>
+    <div class="fg full"><label>Locales que puede editar</label>
+      <div id="epLocales" style="display:flex;flex-direction:column;gap:6px;background:var(--cream);padding:10px;border-radius:8px"></div>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovEditorProp')">Cancelar</button>
+      <button class="btn bd" id="epBtnBorrar" onclick="borrarEditorPropina()" style="display:none">Quitar</button>
+      <button class="btn bp" onclick="guardarEditorPropina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Turno Estándar -->
 <div class="overlay" id="ovTurnoEst">
   <div class="modal" style="max-width:560px">
