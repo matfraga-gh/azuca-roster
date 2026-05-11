@@ -37,6 +37,22 @@ function toast(m,d=3000){const t=document.getElementById('toast');t.textContent=
 function esc(s){if(s==null)return '';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmt(d){if(!d)return '';const dt=new Date(d+'T12:00:00');return `${dt.getDate()}-${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]}`;}
 function hoyStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+// Registra un cambio en el historial. Es "fire and forget" — si falla, no bloquea la acción del usuario.
+async function logHistorial(accion,datos={}){
+  try{
+    const payload={
+      usuario_id:CU?.id||null,
+      usuario_nombre:CU?.nombre||'desconocido',
+      accion,
+      empleado_id:datos.empleado_id||null,
+      empleado_nombre:datos.empleado_nombre||null,
+      dia:datos.dia||null,
+      local:datos.local||LOCAL_ACTUAL||null,
+      detalle:datos.detalle||null
+    };
+    await api('roster_historial','POST',payload);
+  }catch(e){console.warn('logHistorial fallo:',e);}
+}
 function getLunes(d){const dt=new Date(d+'T12:00:00');const day=dt.getDay();const diff=day===0?-6:1-day;dt.setDate(dt.getDate()+diff);return dt.toISOString().split('T')[0];}
 function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
 function diasDeSemana(l){return Array.from({length:7},(_,i)=>addDays(l,i));}
@@ -103,6 +119,7 @@ function buildDash(){
     cards.push({i:'👥',t:'Colaboradores',d:'Gestión del personal',a:"showView('vEmpleados')"});
     cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
     cards.push({i:'📋',t:'Turnos Estándar',d:'Plantillas de turnos semanales',a:"showView('vTurnos')"});
+    cards.push({i:'📜',t:'Historial de cambios',d:'Registro de modificaciones (últimos 60 días)',a:"showView('vHistorial')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -115,7 +132,7 @@ function buildDash(){
 // ── VIEWS ─────────────────────────────────────────
 function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
-  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos')&&!esMaster()){toast('Solo master');return;}
+  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial')&&!esMaster()){toast('Solo master');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
   if(id==='vRoster')initRoster();
@@ -124,6 +141,7 @@ function showView(id){
   if(id==='vEmpleados')loadEmpleados();
   if(id==='vUsuarios')loadUsuarios();
   if(id==='vTurnos')showView_vTurnos();
+  if(id==='vHistorial')loadHistorial();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -223,7 +241,8 @@ async function loadRoster(){
 function renderRosterTable(puedeEditar){
   const dias=diasDeSemana(SEMANA_ACTUAL);
   // Empleados del local actual (todos, para poblar el dropdown)
-  const empsLocal=EMPLEADOS.filter(e=>e.local===LOCAL_ACTUAL&&e.activo!==false);
+  // Empleados del local actual + los multilocales (todos los activos)
+  const empsLocal=EMPLEADOS.filter(e=>e.activo!==false&&(e.local===LOCAL_ACTUAL||e.es_multilocal===true));
   // Sectores únicos disponibles en este local
   const sectoresDisponibles=[...new Set(empsLocal.map(e=>e.sector).filter(Boolean))].sort();
   const selSector=document.getElementById('sectorFilter');
@@ -241,11 +260,15 @@ function renderRosterTable(puedeEditar){
     ${dias.map((d,i)=>`<th class="${esHoy(d)?'th-hoy':''}">${DIAS[i]}<br><small style="font-weight:400;font-size:10px">${fmt(d)}${esHoy(d)?' · HOY':''}</small></th>`).join('')}
   </tr>`;
   if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">${SECTOR_ACTUAL?'Sin colaboradores en este sector':'Sin colaboradores para este local'}</td></tr>`;return;}
-  document.getElementById('rosterBody').innerHTML=emps.map(emp=>`
+  document.getElementById('rosterBody').innerHTML=emps.map(emp=>{
+    const esOtroLocal=emp.es_multilocal&&emp.local!==LOCAL_ACTUAL;
+    const badge=emp.es_multilocal?` <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600;letter-spacing:.3px;margin-left:4px" title="Multilocal">MULTI</span>`:'';
+    const localOrigen=esOtroLocal?`<div class="sector" style="font-size:10px;color:#5B3A8E">📍 ${esc(LOCAL_LABELS[emp.local]||emp.local)}</div>`:'';
+    return `
     <tr>
       <td class="emp-cell">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>${esc(emp.apellido||emp.nombre)}<div class="sector">${esc(emp.sector||'')} · ${esc(emp.categoria||'')}</div></div>
+          <div>${esc(emp.apellido||emp.nombre)}${badge}<div class="sector">${esc(emp.sector||'')} · ${esc(emp.categoria||'')}</div>${localOrigen}</div>
           ${puedeEditar?`<button onclick="abrirAplicarTE(${emp.id})" title="Aplicar turno estándar" style="background:none;border:1px solid var(--sand);border-radius:6px;padding:2px 6px;font-size:10px;cursor:pointer;color:var(--gray);white-space:nowrap">📋</button>`:''}
         </div>
       </td>
@@ -270,12 +293,19 @@ function renderRosterTable(puedeEditar){
         if(t&&t.hora_entrada)return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-hora">${t.hora_entrada.slice(0,5)}</span>${cmt}</div></td>`;
         return`<td${tdCls}><div class="${cls}" ${onclick}${tip}>${dot}<span class="turno-vacio">${editable?'+ agregar':'—'}</span></div></td>`;
       }).join('')}
-    </tr>`).join('');
+    </tr>`;}).join('');
 }
 window.guardarCommentGeneral=async function(){
   const txt=document.getElementById('commentGeneralTxt').value.trim();
+  const previo=SEMANA_OBJ?.comentario_general||'';
+  if(previo===txt)return; // No logear si no hubo cambio real
   if(!SEMANA_ID){const r=await apiUpsert('roster_semanas',{local:LOCAL_ACTUAL,fecha_lunes:SEMANA_ACTUAL,comentario_general:txt,creado_por:CU.id},['local','fecha_lunes']);if(r&&r.length){SEMANA_ID=r[0].id;SEMANA_OBJ=r[0];}}
   else await api(`roster_semanas?id=eq.${SEMANA_ID}`,'PATCH',{comentario_general:txt});
+  if(SEMANA_OBJ)SEMANA_OBJ.comentario_general=txt;
+  logHistorial('comentario_semana',{
+    dia:SEMANA_ACTUAL,
+    detalle:{previo,nuevo:txt}
+  });
 };
 
 // ── TURNO ─────────────────────────────────────────
@@ -323,8 +353,17 @@ window.guardarTurno=async function(){
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
   const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,es_flex:esFlex,hora_entrada:esOff?null:hora,comentario:comment||null};
+  // Capturar estado previo para el log
+  const emp=EMPLEADOS.find(e=>e.id===empId);
+  const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+  const previo=existing?{hora_entrada:existing.hora_entrada,es_off:existing.es_off,es_flex:existing.es_flex,comentario:existing.comentario}:null;
   if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);TURNOS_MAP[key]={...existing,...data};}
   else{const r=await api('roster_turnos','POST',data);if(r&&r.length)TURNOS_MAP[key]=r[0];}
+  // Log de historial
+  logHistorial(existing?'turno_editado':'turno_creado',{
+    empleado_id:empId,empleado_nombre:empNombre,dia,
+    detalle:{previo,nuevo:{hora_entrada:data.hora_entrada,es_off:data.es_off,es_flex:data.es_flex,comentario:data.comentario}}
+  });
   closeOv('ovTurno');renderRosterTable(true);toast('✓ Turno guardado');
 };
 window.borrarTurno=async function(){
@@ -332,7 +371,17 @@ window.borrarTurno=async function(){
   const dia=document.getElementById('turnoDia').value;
   const key=`${empId}_${dia}`;
   const existing=TURNOS_MAP[key];
-  if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');delete TURNOS_MAP[key];}
+  if(existing){
+    await api(`roster_turnos?id=eq.${existing.id}`,'DELETE');
+    delete TURNOS_MAP[key];
+    // Log de historial
+    const emp=EMPLEADOS.find(e=>e.id===empId);
+    const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+    logHistorial('turno_borrado',{
+      empleado_id:empId,empleado_nombre:empNombre,dia,
+      detalle:{previo:{hora_entrada:existing.hora_entrada,es_off:existing.es_off,es_flex:existing.es_flex,comentario:existing.comentario}}
+    });
+  }
   closeOv('ovTurno');renderRosterTable(true);toast('Turno eliminado');
 };
 
@@ -561,7 +610,7 @@ function renderEmpleados(){
     const inactivo=e.activo===false;
     const trStyle=inactivo?' style="opacity:.55"':'';
     return `<tr${trStyle}>
-    <td style="font-weight:600">${esc(apellidoMostrar||'—')}${inactivo?' <span class="badge b-rechazado" style="font-size:9px;margin-left:4px">Inactivo</span>':''}</td>
+    <td style="font-weight:600">${esc(apellidoMostrar||'—')}${inactivo?' <span class="badge b-rechazado" style="font-size:9px;margin-left:4px">Inactivo</span>':''}${e.es_multilocal?' <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600;letter-spacing:.3px;margin-left:4px" title="Trabaja en todos los locales">MULTI</span>':''}</td>
     <td>${esc(nombreMostrar||'—')}</td>
     <td>${esc(LOCAL_LABELS[e.local]||e.local||'—')}</td>
     <td>${esc(e.sector||'—')}</td>
@@ -574,18 +623,21 @@ function renderEmpleados(){
   </tr>`;}).join('');
 }
 window.renderEmpleados=renderEmpleados;
-function openEmpModal(){
+function openEmpModal(esEventual=false){
   eEmpId=null;
-  document.getElementById('empModalTitle').textContent='Nuevo Colaborador';
+  document.getElementById('empModalTitle').textContent=esEventual?'Nuevo Eventual':'Nuevo Colaborador';
   ['eApellido','eNombreP','eOtroCargo','eTel'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('eFechaNac').value='';
   document.getElementById('eLocal').value='2-AZAFRAN';
   document.getElementById('eSector').value='COCINA';
   document.getElementById('otroCargoWrap').style.display='none';
+  // Multilocal: para eventual va tildado por default
+  document.getElementById('eMultilocal').checked=esEventual;
+  // Para eventual: no crear usuario por default y usuario no obligatorio
   const cb=document.getElementById('eCrearUser');
-  cb.checked=true;cb.disabled=false;
+  cb.checked=!esEventual;cb.disabled=false;
   const hint=document.getElementById('eCrearUserHint');
-  hint.textContent='Usuario: primeras 3 letras apellido + 3 letras nombre · Contraseña: azuca26';
+  hint.textContent=esEventual?'Eventual: no necesita usuario':'Usuario: primeras 3 letras apellido + 3 letras nombre · Contraseña: azuca26';
   hint.style.color='var(--gray)';
   actualizarCargos();
   openOv('ovEmp');
@@ -606,6 +658,7 @@ async function editEmp(id){
   else{sel.value='OTRO';document.getElementById('otroCargoWrap').style.display='block';document.getElementById('eOtroCargo').value=e.categoria||'';}
   document.getElementById('eTel').value=e.telefono||'';
   document.getElementById('eFechaNac').value=e.fecha_nac||'';
+  document.getElementById('eMultilocal').checked=!!e.es_multilocal;
   // Chequear si ya tiene usuario asociado
   const yaTieneUser=await api(`roster_usuarios?empleado_id=eq.${id}&select=usuario`);
   const cb=document.getElementById('eCrearUser');
@@ -625,14 +678,16 @@ window.editEmp=editEmp;
 window.guardarEmpleado=async function(){
   const apellido=document.getElementById('eApellido').value.trim();
   const nombreP=document.getElementById('eNombreP').value.trim();
-  if(!apellido){toast('Ingresá el apellido');return;}
+  if(!apellido&&!nombreP){toast('Ingresá al menos un nombre o apellido');return;}
   const catSel=document.getElementById('eCategoria').value;
   const cat=catSel==='OTRO'?document.getElementById('eOtroCargo').value.trim():catSel;
   const nombre=apellido+(nombreP?' '+nombreP:'');
   const data={nombre,apellido,nombre_p:nombreP||null,local:document.getElementById('eLocal').value,
     sector:document.getElementById('eSector').value,categoria:cat,
     telefono:document.getElementById('eTel').value.trim()||null,
-    fecha_nac:document.getElementById('eFechaNac').value||null,activo:true};
+    fecha_nac:document.getElementById('eFechaNac').value||null,
+    es_multilocal:document.getElementById('eMultilocal').checked,
+    activo:true};
   let empId=eEmpId;
   if(eEmpId){
     const r=await api(`empleados?id=eq.${eEmpId}`,'PATCH',data);
@@ -984,8 +1039,93 @@ window.aplicarTurnoEst=async function(){
   
   closeOv('ovAplicarTE');
   renderRosterTable(true);
+  // Log de historial - una entrada por aplicación de plantilla
+  const emp=EMPLEADOS.find(e=>e.id===empId);
+  const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+  logHistorial('turno_estandar_aplicado',{
+    empleado_id:empId,empleado_nombre:empNombre,dia:SEMANA_ACTUAL,
+    detalle:{plantilla:t.nombre,plantilla_id:t.id}
+  });
   toast(`✓ Turno "${t.nombre}" aplicado`);
 };
+
+// ── HISTORIAL ─────────────────────────────────────
+let HISTORIAL=[];
+async function loadHistorial(){
+  // Trae registros de los últimos 60 días
+  const limite=new Date();limite.setDate(limite.getDate()-60);
+  const fechaLimite=limite.toISOString();
+  const data=await api(`roster_historial?fecha=gte.${fechaLimite}&order=fecha.desc&limit=500`)||[];
+  HISTORIAL=data;
+  renderHistorial();
+}
+window.loadHistorial=loadHistorial;
+window.renderHistorial=function(){
+  const tb=document.getElementById('histTbody');
+  if(!tb)return;
+  const s=(document.getElementById('histSearch')?.value||'').toLowerCase();
+  const accion=document.getElementById('histFiltAccion')?.value||'';
+  const local=document.getElementById('histFiltLocal')?.value||'';
+  const ACCIONES={
+    turno_creado:'➕ Turno creado',
+    turno_editado:'✏️ Turno editado',
+    turno_borrado:'🗑 Turno borrado',
+    turno_estandar_aplicado:'📋 Plantilla aplicada',
+    comentario_semana:'💬 Comentario semana'
+  };
+  const f=HISTORIAL.filter(h=>{
+    if(accion&&h.accion!==accion)return false;
+    if(local&&h.local!==local)return false;
+    if(s){
+      const txt=`${h.usuario_nombre||''} ${h.empleado_nombre||''}`.toLowerCase();
+      if(!txt.includes(s))return false;
+    }
+    return true;
+  });
+  if(!f.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:24px">Sin registros</td></tr>`;return;}
+  tb.innerHTML=f.map(h=>{
+    const dt=new Date(h.fecha);
+    const fechaTxt=dt.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap">${fechaTxt}</td>
+      <td style="font-weight:600">${esc(h.usuario_nombre||'—')}</td>
+      <td>${ACCIONES[h.accion]||esc(h.accion)}</td>
+      <td>${esc(h.empleado_nombre||'—')}</td>
+      <td>${h.dia?fmt(h.dia):'—'}</td>
+      <td style="font-size:12px">${esc(LOCAL_LABELS[h.local]||h.local||'—')}</td>
+      <td style="font-size:11px;color:var(--gray);max-width:300px">${formatDetalleHistorial(h.accion,h.detalle)}</td>
+    </tr>`;
+  }).join('');
+};
+function formatDetalleHistorial(accion,detalle){
+  if(!detalle)return '—';
+  try{
+    if(accion==='turno_creado'){
+      const n=detalle.nuevo;
+      if(n?.es_off)return 'OFF';
+      if(n?.es_flex)return 'FLEX'+(n.hora_entrada?' '+n.hora_entrada.slice(0,5):'');
+      return n?.hora_entrada?n.hora_entrada.slice(0,5):'—';
+    }
+    if(accion==='turno_editado'){
+      const p=detalle.previo,n=detalle.nuevo;
+      const fmtT=t=>!t?'—':t.es_off?'OFF':t.es_flex?'FLEX'+(t.hora_entrada?' '+t.hora_entrada.slice(0,5):''):(t.hora_entrada?t.hora_entrada.slice(0,5):'—');
+      return `${fmtT(p)} → ${fmtT(n)}`;
+    }
+    if(accion==='turno_borrado'){
+      const p=detalle.previo;
+      return 'Borrado: '+(!p?'—':p.es_off?'OFF':p.es_flex?'FLEX':(p.hora_entrada?p.hora_entrada.slice(0,5):'—'));
+    }
+    if(accion==='turno_estandar_aplicado'){
+      return 'Plantilla: '+esc(detalle.plantilla||'—');
+    }
+    if(accion==='comentario_semana'){
+      const p=(detalle.previo||'').slice(0,40);
+      const n=(detalle.nuevo||'').slice(0,40);
+      return `"${esc(p)}" → "${esc(n)}"`;
+    }
+  }catch(e){return '—';}
+  return JSON.stringify(detalle).slice(0,80);
+}
 
 // ── INIT ──────────────────────────────────────────
 // ── RELOJ EN HEADERS ──────────────────────────────
