@@ -508,7 +508,7 @@ window.toggleOtroCargo=function(){
 };
 async function loadEmpleados(force=true){
   if(!force&&EMPLEADOS.length)return;
-  const data=await api('empleados?select=*&activo=neq.false&order=apellido.asc,nombre.asc')||[];
+  const data=await api('empleados?select=*&order=apellido.asc,nombre.asc')||[];
   EMPLEADOS=data;
   // Solo re-renderizar si la vista de empleados está activa
   if(document.getElementById('vEmpleados')?.classList.contains('active'))renderEmpleados();
@@ -516,21 +516,43 @@ async function loadEmpleados(force=true){
 function renderEmpleados(){
   const s=(document.getElementById('empSearch')?.value||'').toLowerCase();
   const l=document.getElementById('empFiltLocal')?.value||'';
-  const f=EMPLEADOS.filter(e=>(!s||(e.apellido||e.nombre||'').toLowerCase().includes(s))&&(!l||e.local===l));
+  const verInactivos=document.getElementById('empMostrarInactivos')?.checked||false;
+  const f=EMPLEADOS.filter(e=>{
+    if(!verInactivos&&e.activo===false)return false;
+    if(l&&e.local!==l)return false;
+    if(!s)return true;
+    const txt=`${e.apellido||''} ${e.nombre_p||''} ${e.nombre||''}`.toLowerCase();
+    return txt.includes(s);
+  });
   const tb=document.getElementById('empTbody');
   if(!f.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:24px">Sin colaboradores</td></tr>`;return;}
-  tb.innerHTML=f.map(e=>`<tr>
-    <td style="font-weight:600">${esc(e.apellido||e.nombre||'—')}</td>
-    <td>${esc(e.nombre_p||'—')}</td>
+  tb.innerHTML=f.map(e=>{
+    // Si tiene apellido y nombre_p, perfecto. Si no, intentar deducir desde nombre completo.
+    let apellidoMostrar=e.apellido||'';
+    let nombreMostrar=e.nombre_p||'';
+    if(!apellidoMostrar&&e.nombre){
+      // Si solo tiene nombre, mostrarlo como apellido (caso heredado)
+      apellidoMostrar=e.nombre;
+    }
+    if(!nombreMostrar&&e.nombre&&e.apellido){
+      // Si nombre completo es "Apellido NombreP", extraer la parte del nombre
+      const resto=e.nombre.replace(e.apellido,'').trim();
+      if(resto)nombreMostrar=resto;
+    }
+    const inactivo=e.activo===false;
+    const trStyle=inactivo?' style="opacity:.55"':'';
+    return `<tr${trStyle}>
+    <td style="font-weight:600">${esc(apellidoMostrar||'—')}${inactivo?' <span class="badge b-rechazado" style="font-size:9px;margin-left:4px">Inactivo</span>':''}</td>
+    <td>${esc(nombreMostrar||'—')}</td>
     <td>${esc(LOCAL_LABELS[e.local]||e.local||'—')}</td>
     <td>${esc(e.sector||'—')}</td>
     <td>${esc(e.categoria||'—')}</td>
     <td>${esc(e.telefono||'—')}</td>
     <td style="display:flex;gap:4px">
       <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editEmp(${e.id})">✏️</button>
-      <button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})">🗑</button>
+      <button class="bd" onclick="toggleActivo(${e.id},${e.activo!==false})" title="${inactivo?'Reactivar':'Dar de baja'}">${inactivo?'♻️':'🗑'}</button>
     </td>
-  </tr>`).join('');
+  </tr>`;}).join('');
 }
 window.renderEmpleados=renderEmpleados;
 function openEmpModal(){
