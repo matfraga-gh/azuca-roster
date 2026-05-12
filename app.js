@@ -137,6 +137,7 @@ function buildDash(){
     cards.push({i:'📋',t:'Turnos Estándar',d:'Plantillas de turnos semanales',a:"showView('vTurnos')"});
     cards.push({i:'📜',t:'Historial de cambios',d:'Registro de modificaciones (últimos 60 días)',a:"showView('vHistorial')"});
     cards.push({i:'💰',t:'Configurar Propinas',d:'Tipo de cambio y editores de propinas',a:"showView('vPropinasConfig')"});
+    cards.push({i:'📊',t:'Resumen Propinas',d:'Reporte por período para RRHH',a:"showView('vPropinasResumen')"});
   }
   document.getElementById('dashGrid').innerHTML=cards.map(c=>`
     <div class="dash-card" onclick="${c.a}">
@@ -149,7 +150,7 @@ function buildDash(){
 // ── VIEWS ─────────────────────────────────────────
 function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
-  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial'||id==='vPropinasConfig')&&!esMaster()){toast('Solo master');return;}
+  if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial'||id==='vPropinasConfig'||id==='vPropinasResumen')&&!esMaster()){toast('Solo master');return;}
   if((id==='vPropinas'||id==='vPropinasForm')&&!esEditorPropina()){toast('Sin permiso para propinas');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
@@ -163,6 +164,7 @@ function showView(id){
   if(id==='vPropinasConfig')loadPropinasConfig();
   if(id==='vPropinas')loadPropinas();
   if(id==='vMiPropina')loadMiPropina();
+  if(id==='vPropinasResumen')loadPropinasResumen();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -1148,6 +1150,101 @@ function formatDetalleHistorial(accion,detalle){
   return JSON.stringify(detalle).slice(0,80);
 }
 
+// ── PROPINAS: RESUMEN GENERAL (Master) ────────────
+async function loadPropinasResumen(){
+  // Set default: últimos 30 días
+  if(!document.getElementById('prDesde').value){
+    const hasta=new Date();
+    const desde=new Date();desde.setDate(desde.getDate()-30);
+    document.getElementById('prDesde').value=desde.toISOString().slice(0,10);
+    document.getElementById('prHasta').value=hasta.toISOString().slice(0,10);
+  }
+  if(!EMPLEADOS.length)await loadEmpleados();
+  if(!USUARIOS_R.length)USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  cargarResumenPropinas();
+}
+window.loadPropinasResumen=loadPropinasResumen;
+
+window.resumenRapido=function(dias){
+  const hasta=new Date();
+  const desde=new Date();desde.setDate(desde.getDate()-dias);
+  document.getElementById('prDesde').value=desde.toISOString().slice(0,10);
+  document.getElementById('prHasta').value=hasta.toISOString().slice(0,10);
+  cargarResumenPropinas();
+};
+
+window.cargarResumenPropinas=async function(){
+  const desde=document.getElementById('prDesde').value;
+  const hasta=document.getElementById('prHasta').value;
+  const local=document.getElementById('prLocal').value;
+  const estado=document.getElementById('prEstado').value;
+  if(!desde||!hasta){toast('Elegí un período válido');return;}
+  // Armar query de cierres
+  let q=`propinas_cierres?fecha=gte.${desde}&fecha=lte.${hasta}&select=id,fecha,turno,local,total_bruto,total_neto,total_puntos,pagado`;
+  if(local)q+=`&local=eq.${encodeURIComponent(local)}`;
+  if(estado==='pagado')q+='&pagado=eq.true';
+  if(estado==='pendiente')q+='&pagado=eq.false';
+  const cierres=await api(q)||[];
+  if(!cierres.length){
+    document.getElementById('prResumenCards').innerHTML=`<div style="grid-column:1/-1;background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;color:var(--gray)">Sin cierres en este período</div>`;
+    document.getElementById('prTbody').innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin datos</td></tr>';
+    return;
+  }
+  // Resumen ejecutivo
+  const totalBruto=cierres.reduce((s,c)=>s+parseFloat(c.total_bruto||0),0);
+  const totalNeto=cierres.reduce((s,c)=>s+parseFloat(c.total_neto||0),0);
+  const cantPagados=cierres.filter(c=>c.pagado).length;
+  const cantPendientes=cierres.length-cantPagados;
+  document.getElementById('prResumenCards').innerHTML=`
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px">Cierres</div>
+      <div style="font-size:24px;font-weight:700">${cierres.length}</div>
+      <div style="font-size:11px;color:var(--gray)">${cantPagados} pagados · ${cantPendientes} pendientes</div>
+    </div>
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px">Total bruto</div>
+      <div style="font-size:24px;font-weight:700">$${formatNumber(totalBruto)}</div>
+    </div>
+    <div style="background:var(--white);border:2px solid var(--olive);border-radius:12px;padding:14px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--olive);margin-bottom:4px">Neto a repartir</div>
+      <div style="font-size:24px;font-weight:700;color:var(--olive)">$${formatNumber(totalNeto)}</div>
+    </div>`;
+  // Traer asignaciones de esos cierres
+  const cierreIds=cierres.map(c=>c.id);
+  if(!cierreIds.length){return;}
+  // PostgREST acepta in.(1,2,3,...)
+  const ids=cierreIds.join(',');
+  const asigs=await api(`propinas_asignaciones?cierre_id=in.(${ids})&select=*`)||[];
+  // Agrupar por empleado
+  const porEmp={};
+  asigs.forEach(a=>{
+    if(!a.monto)return;
+    if(!porEmp[a.empleado_id])porEmp[a.empleado_id]={cierres:0,puntos:0,monto:0};
+    porEmp[a.empleado_id].cierres++;
+    porEmp[a.empleado_id].puntos+=parseFloat(a.puntos||0);
+    porEmp[a.empleado_id].monto+=parseFloat(a.monto||0);
+  });
+  // Render tabla
+  const filas=Object.entries(porEmp).map(([empId,data])=>{
+    const e=EMPLEADOS.find(x=>x.id===parseInt(empId));
+    return {emp:e,...data,empId:parseInt(empId)};
+  }).sort((a,b)=>b.monto-a.monto);
+  const tb=document.getElementById('prTbody');
+  if(!filas.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin asignaciones en este período</td></tr>';return;}
+  tb.innerHTML=filas.map(f=>{
+    const apellido=f.emp?.apellido||f.emp?.nombre||'—';
+    const nombrep=f.emp?.nombre_p||'';
+    const multi=f.emp?.es_multilocal?' <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600">MULTI</span>':'';
+    return `<tr>
+      <td style="font-weight:600">${esc(apellido)}${nombrep?' '+esc(nombrep):''}${multi}</td>
+      <td style="font-size:12px">${esc(LOCAL_LABELS[f.emp?.local]||f.emp?.local||'—')}</td>
+      <td style="text-align:center">${f.cierres}</td>
+      <td style="text-align:center">${f.puntos}</td>
+      <td style="text-align:right;font-weight:600">$${formatNumber(f.monto)}</td>
+    </tr>`;
+  }).join('');
+};
+
 // ── MI PROPINA (Colaborador) ──────────────────────
 async function loadMiPropina(){
   const cont=document.getElementById('mpContenido');
@@ -1271,7 +1368,15 @@ function renderCierres(){
     const usr=USUARIOS_R.find(u=>u.id===c.creado_por);
     const turnoTxt=c.turno==='mediodia'?'🌤 Mediodía':'🌙 Noche';
     const estadoBadge=c.pagado?'<span class="badge b-aprobado">✓ Pagado</span>':'<span class="badge b-procesada">Cerrado</span>';
-    const puedeEditar=esMaster(); // Una vez cargado, solo master edita
+    const puedeEditar=esMaster();
+    let acciones=puedeEditar?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Editar">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Ver">👁</button>`;
+    if(esMaster()){
+      if(!c.pagado){
+        acciones+=` <button class="abtn ao" style="padding:4px 8px;font-size:11px;background:var(--olive);color:var(--white);border-color:var(--olive)" onclick="marcarPagado(${c.id})" title="Marcar como pagado">✓ Pagar</button>`;
+      }else{
+        acciones+=` <button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="desmarcarPagado(${c.id})" title="Revertir pago">↶</button>`;
+      }
+    }
     return `<tr>
       <td style="font-weight:600">${fmt(c.fecha)}</td>
       <td>${turnoTxt}</td>
@@ -1281,10 +1386,26 @@ function renderCierres(){
       <td style="text-align:center">${c.total_puntos}</td>
       <td style="font-size:11px;color:var(--gray)">${esc(usr?.nombre||'—')}</td>
       <td>${estadoBadge}</td>
-      <td>${puedeEditar?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})">👁</button>`}</td>
+      <td style="white-space:nowrap">${acciones}</td>
     </tr>`;
   }).join('');
 }
+
+window.marcarPagado=async function(id){
+  if(!confirm('¿Marcar este cierre como pagado? Los colaboradores ya no lo verán en "Mi Propina" (queda archivado en el historial).'))return;
+  const r=await api(`propinas_cierres?id=eq.${id}`,'PATCH',{pagado:true,pagado_en:new Date().toISOString(),pagado_por:CU.id});
+  if(r===null){toast('Error al marcar como pagado');return;}
+  toast('✓ Cierre marcado como pagado');
+  loadCierres();
+};
+
+window.desmarcarPagado=async function(id){
+  if(!confirm('¿Revertir el pago de este cierre? Volverá a aparecer en "Mi Propina" de los colaboradores.'))return;
+  const r=await api(`propinas_cierres?id=eq.${id}`,'PATCH',{pagado:false,pagado_en:null,pagado_por:null});
+  if(r===null){toast('Error al revertir');return;}
+  toast('Cierre desmarcado');
+  loadCierres();
+};
 
 function formatNumber(n){
   if(n==null)return '0';

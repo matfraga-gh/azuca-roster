@@ -447,6 +447,67 @@
   </div>
 </div>
 
+<!-- RESUMEN PROPINAS (Master) -->
+<div id="vPropinasResumen" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Resumen Propinas</div></div>
+    <div class="app-btns">
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Resumen de Propinas</h1>
+    <p class="psub">Total por colaborador en un período seleccionado. Reporte para RRHH.</p>
+
+    <!-- Filtros -->
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div class="frow">
+        <div class="fg"><label>Desde</label><input type="date" id="prDesde"></div>
+        <div class="fg"><label>Hasta</label><input type="date" id="prHasta"></div>
+        <div class="fg"><label>Local</label>
+          <select id="prLocal">
+            <option value="">Todos los locales</option>
+            <option value="1-AZUCA">Azuca</option>
+            <option value="2-AZAFRAN">Azafrán</option>
+            <option value="3-NIETO">Nieto</option>
+            <option value="4-VIÑA COBOS">Viña Cobos</option>
+            <option value="5-TRAPICHE">Trapiche</option>
+            <option value="VINOBIEN">Vinobien</option>
+          </select>
+        </div>
+        <div class="fg"><label>Estado</label>
+          <select id="prEstado">
+            <option value="">Todos</option>
+            <option value="pendiente">Pendientes de pago</option>
+            <option value="pagado">Ya pagados</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn bp" onclick="cargarResumenPropinas()">Aplicar filtros</button>
+        <button class="btn bs" onclick="resumenRapido(7)">Últimos 7 días</button>
+        <button class="btn bs" onclick="resumenRapido(15)">Últimos 15 días</button>
+        <button class="btn bs" onclick="resumenRapido(30)">Últimos 30 días</button>
+      </div>
+    </div>
+
+    <!-- Resumen ejecutivo -->
+    <div id="prResumenCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px"></div>
+
+    <!-- Tabla por colaborador -->
+    <div class="tw"><table class="tbl">
+      <thead><tr>
+        <th>Colaborador</th>
+        <th>Local principal</th>
+        <th style="text-align:center">Cierres</th>
+        <th style="text-align:center">Puntos totales</th>
+        <th style="text-align:right">Total a cobrar</th>
+      </tr></thead>
+      <tbody id="prTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
 <!-- MI PROPINA (colaborador) -->
 <div id="vMiPropina" class="view">
   <div class="app-hdr">
