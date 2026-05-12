@@ -130,7 +130,7 @@ function buildDash(){
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
   cards.push({i:'💰',t:'Mi Propina',d:'Ver mis propinas acumuladas',a:"showView('vMiPropina')"});
   if(esEditorPerfil())cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
-  if(esEditorPropina())cards.push({i:'💰',t:'Cargar Propinas',d:'Cierres de caja y reparto',a:"showView('vPropinas')"});
+  if(esEditorPropina())cards.push({i:'💰',t:'Gestión de Propinas',d:'Cierres de caja y reparto',a:"showView('vPropinas')"});
   if(esMaster()){
     cards.push({i:'👥',t:'Colaboradores',d:'Gestión del personal',a:"showView('vEmpleados')"});
     cards.push({i:'🔑',t:'Usuarios y Accesos',d:'Gestión de perfiles y contraseñas',a:"showView('vUsuarios')"});
@@ -1250,70 +1250,116 @@ async function loadMiPropina(){
   const cont=document.getElementById('mpContenido');
   if(!cont)return;
   if(CU?.nombre)document.getElementById('mpBienvenido').textContent=`Mi Propina · ${CU.nombre}`;
-  // Si no tiene empleado_id, no puede mostrar nada
   if(!CU?.empleado_id){
     cont.innerHTML=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;color:var(--gray)">
       Tu usuario no está vinculado a un colaborador.<br><span style="font-size:12px">Pedile al administrador que te vincule para ver tus propinas.</span>
     </div>`;
     return;
   }
-  // Traer asignaciones del colaborador (con detalles del cierre)
-  // Solo las NO pagadas (pendientes de cobro)
-  const asigs=await api(`propinas_asignaciones?empleado_id=eq.${CU.empleado_id}&select=*,cierre:cierre_id(fecha,turno,local,pagado)&order=id.desc`)||[];
-  // Filtrar solo las pendientes
+  // Traer asignaciones con datos del cierre
+  // Limitamos a últimos ~4 meses para no traer histórico muy viejo (pendientes pueden ser de cualquier fecha pero los pagados solo de los últimos 3 meses)
+  const hoy=new Date();
+  const limite=new Date(hoy.getFullYear(),hoy.getMonth()-3,1); // primer día de hace 3 meses
+  const limiteStr=limite.toISOString().slice(0,10);
+  const asigs=await api(`propinas_asignaciones?empleado_id=eq.${CU.empleado_id}&select=*,cierre:cierre_id(fecha,turno,local,pagado,pagado_en)&order=id.desc`)||[];
+  // Separar pendientes y pagados
   const pendientes=asigs.filter(a=>a.cierre&&!a.cierre.pagado&&a.monto>0);
-  if(!pendientes.length){
-    cont.innerHTML=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;color:var(--gray)">
+  // Pagados de los últimos 3 meses (incluyendo el actual)
+  const pagadosRecientes=asigs.filter(a=>a.cierre&&a.cierre.pagado&&a.monto>0&&a.cierre.fecha>=limiteStr);
+
+  // Render — banner de pendientes
+  let html='';
+  const totalPendiente=pendientes.reduce((s,a)=>s+parseFloat(a.monto||0),0);
+  if(pendientes.length){
+    html+=`<div style="background:linear-gradient(135deg,var(--olive),var(--olive-l));color:var(--white);border-radius:16px;padding:24px;margin-bottom:20px;text-align:center;box-shadow:0 4px 16px rgba(92,107,58,.25)">
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-bottom:6px">Total pendiente de cobro</div>
+      <div style="font-size:36px;font-weight:700;letter-spacing:-1px">$${formatNumber(totalPendiente)}</div>
+      <div style="font-size:11px;opacity:.75;margin-top:6px">${pendientes.length} ${pendientes.length===1?'cierre':'cierres'} pendiente${pendientes.length===1?'':'s'}</div>
+    </div>`;
+  }else{
+    html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
       <div style="font-size:32px;margin-bottom:8px">💰</div>
       <div style="font-weight:600;color:var(--dark);margin-bottom:4px">No tenés propinas pendientes</div>
-      <div style="font-size:12px">Cuando se carguen propinas para vos, las vas a ver acá.</div>
+      <div style="font-size:12px;color:var(--gray)">Cuando se carguen propinas para vos, las vas a ver acá.</div>
     </div>`;
-    return;
   }
-  // Total general
-  const totalGral=pendientes.reduce((s,a)=>s+parseFloat(a.monto||0),0);
-  // Agrupar por local
-  const porLocal={};
-  pendientes.forEach(a=>{
-    const loc=a.cierre.local;
-    if(!porLocal[loc])porLocal[loc]={total:0,dias:[]};
-    porLocal[loc].total+=parseFloat(a.monto||0);
-    porLocal[loc].dias.push({
-      fecha:a.cierre.fecha,
-      turno:a.cierre.turno,
-      puntos:parseFloat(a.puntos),
-      monto:parseFloat(a.monto||0)
-    });
+
+  // Histórico de cobrados (últimos 3 meses + actual)
+  // Armar buckets: mes actual + 3 anteriores
+  const MESES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const buckets=[];
+  for(let i=0;i<4;i++){
+    const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl=`${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    buckets.push({key,lbl,total:0,cantidad:0});
+  }
+  pagadosRecientes.forEach(a=>{
+    const k=a.cierre.fecha.slice(0,7); // YYYY-MM
+    const b=buckets.find(x=>x.key===k);
+    if(b){b.total+=parseFloat(a.monto||0);b.cantidad++;}
   });
-  // Ordenar días dentro de cada local (más reciente primero)
-  Object.values(porLocal).forEach(l=>l.dias.sort((a,b)=>b.fecha.localeCompare(a.fecha)));
-  // Render
-  let html=`<div style="background:linear-gradient(135deg,var(--olive),var(--olive-l));color:var(--white);border-radius:16px;padding:24px;margin-bottom:20px;text-align:center;box-shadow:0 4px 16px rgba(92,107,58,.25)">
-    <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85;margin-bottom:6px">Total pendiente de cobro</div>
-    <div style="font-size:36px;font-weight:700;letter-spacing:-1px">$${formatNumber(totalGral)}</div>
-    <div style="font-size:11px;opacity:.75;margin-top:6px">${pendientes.length} ${pendientes.length===1?'cierre':'cierres'} pendiente${pendientes.length===1?'':'s'}</div>
-  </div>`;
-  // Por local
-  Object.entries(porLocal).forEach(([loc,data])=>{
+  const totalCobrado=buckets.reduce((s,b)=>s+b.total,0);
+  // Solo mostrar el histórico si hay algo cobrado o si hay pendientes (para que el colaborador entienda el contexto)
+  if(totalCobrado>0||pendientes.length){
+    html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:600;font-size:13px">💵 Ya cobrado</div>
+        <div style="font-size:11px;color:var(--gray)">Últimos 3 meses</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+        ${buckets.map((b,i)=>`
+          <div style="background:${i===0?'var(--cream)':'transparent'};border-radius:8px;padding:10px;text-align:center;border:1px solid ${i===0?'var(--olive)':'var(--sand-l)'}">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px">${b.lbl}${i===0?' · Actual':''}</div>
+            <div style="font-size:16px;font-weight:700;color:${b.total>0?'var(--dark)':'var(--gray)'}">$${formatNumber(b.total)}</div>
+            ${b.cantidad?`<div style="font-size:10px;color:var(--gray);margin-top:2px">${b.cantidad} ${b.cantidad===1?'cierre':'cierres'}</div>`:''}
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--sand-l);display:flex;justify-content:space-between;font-size:13px">
+        <span style="color:var(--gray)">Total cobrado:</span>
+        <strong>$${formatNumber(totalCobrado)}</strong>
+      </div>
+    </div>`;
+  }
+
+  // Detalle por local de los pendientes
+  if(pendientes.length){
+    const porLocal={};
+    pendientes.forEach(a=>{
+      const loc=a.cierre.local;
+      if(!porLocal[loc])porLocal[loc]={total:0,dias:[]};
+      porLocal[loc].total+=parseFloat(a.monto||0);
+      porLocal[loc].dias.push({
+        fecha:a.cierre.fecha,
+        turno:a.cierre.turno,
+        puntos:parseFloat(a.puntos),
+        monto:parseFloat(a.monto||0)
+      });
+    });
+    Object.values(porLocal).forEach(l=>l.dias.sort((a,b)=>b.fecha.localeCompare(a.fecha)));
     const turnoIcon={mediodia:'🌤',noche:'🌙'};
     const turnoLbl={mediodia:'Mediodía',noche:'Noche'};
-    html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--sand-l);margin-bottom:10px">
-        <div style="font-weight:600;font-size:14px">📍 ${esc(LOCAL_LABELS[loc]||loc)}</div>
-        <div style="font-weight:700;color:var(--olive);font-size:16px">$${formatNumber(data.total)}</div>
-      </div>
-      ${data.dias.map(d=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
-          <div>
-            <span style="font-weight:600">${fmt(d.fecha)}</span>
-            <span style="color:var(--gray);margin-left:6px">${turnoIcon[d.turno]||''} ${turnoLbl[d.turno]||d.turno}</span>
-            <span style="font-size:11px;color:var(--gray);margin-left:8px">${d.puntos===1?'1 punto':d.puntos===0.5?'½ punto':d.puntos+' pts'}</span>
-          </div>
-          <div style="font-weight:600">$${formatNumber(d.monto)}</div>
+    html+=`<div style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:1px">Detalle de pendientes</div>`;
+    Object.entries(porLocal).forEach(([loc,data])=>{
+      html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--sand-l);margin-bottom:10px">
+          <div style="font-weight:600;font-size:14px">📍 ${esc(LOCAL_LABELS[loc]||loc)}</div>
+          <div style="font-weight:700;color:var(--olive);font-size:16px">$${formatNumber(data.total)}</div>
         </div>
-      `).join('')}
-    </div>`;
-  });
+        ${data.dias.map(d=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+            <div>
+              <span style="font-weight:600">${fmt(d.fecha)}</span>
+              <span style="color:var(--gray);margin-left:6px">${turnoIcon[d.turno]||''} ${turnoLbl[d.turno]||d.turno}</span>
+              <span style="font-size:11px;color:var(--gray);margin-left:8px">${d.puntos===1?'1 punto':d.puntos===0.5?'½ punto':d.puntos+' pts'}</span>
+            </div>
+            <div style="font-weight:600">$${formatNumber(d.monto)}</div>
+          </div>
+        `).join('')}
+      </div>`;
+    });
+  }
   cont.innerHTML=html;
 }
 window.loadMiPropina=loadMiPropina;
@@ -1401,7 +1447,9 @@ function renderCierres(){
     const turnoTxt=c.turno==='mediodia'?'🌤 Mediodía':'🌙 Noche';
     const estadoBadge=c.pagado?'<span class="badge b-aprobado">✓ Pagado</span>':'<span class="badge b-procesada">Cerrado</span>';
     const puedeEditar=esMaster();
-    let acciones=puedeEditar?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Editar">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Ver">👁</button>`;
+    // Acciones: editar solo si master Y no está pagado. Sino, solo ver.
+    const editable=esMaster()&&!c.pagado;
+    let acciones=editable?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Editar">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Ver">👁</button>`;
     if(esMaster()&&c.pagado){
       acciones+=` <button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="desmarcarPagado(${c.id})" title="Revertir pago">↶</button>`;
     }
@@ -1495,15 +1543,17 @@ window.abrirCierre=async function(id){
   const c=PROP_CIERRES.find(x=>x.id===id);
   if(!c)return;
   PROP_CIERRE_EDIT=c;
-  document.getElementById('pfTitulo').textContent=esMaster()?'Editar cierre':'Ver cierre (cerrado)';
+  // Un cierre pagado es solo-lectura para TODOS (incluido master)
+  const soloLectura=c.pagado||!esMaster();
+  document.getElementById('pfTitulo').textContent=c.pagado?'Ver cierre (pagado)':(esMaster()?'Editar cierre':'Ver cierre (cerrado)');
   const sel=document.getElementById('pfLocal');
   sel.innerHTML=PROP_MIS_LOCALES.map(l=>`<option value="${l}" ${l===c.local?'selected':''}>${esc(LOCAL_LABELS[l]||l)}</option>`).join('');
-  sel.disabled=!esMaster();
+  sel.disabled=soloLectura;
   document.getElementById('pfFecha').value=c.fecha;
   document.getElementById('pfFecha').max=hoyStr();
-  document.getElementById('pfFecha').disabled=!esMaster();
+  document.getElementById('pfFecha').disabled=soloLectura;
   document.getElementById('pfTurno').value=c.turno;
-  document.getElementById('pfTurno').disabled=!esMaster();
+  document.getElementById('pfTurno').disabled=soloLectura;
   buildBilletesForm(c);
   buildExtranjeraForm(c);
   document.getElementById('pfTarjeta').value=c.monto_tarjeta||0;
@@ -1512,10 +1562,19 @@ window.abrirCierre=async function(id){
   const asigs=await api(`propinas_asignaciones?cierre_id=eq.${id}&select=*`)||[];
   PROP_COLABS_PUNTOS={};
   asigs.forEach(a=>{PROP_COLABS_PUNTOS[a.empleado_id]=parseFloat(a.puntos);});
-  // Si no es master, deshabilitar todos los inputs
-  if(!esMaster())setTimeout(()=>{
+  // Deshabilitar todos los inputs si es solo-lectura
+  if(soloLectura)setTimeout(()=>{
     document.querySelectorAll('#vPropinasForm input, #vPropinasForm select').forEach(el=>el.disabled=true);
-  },50);
+    // Ocultar el botón "Guardar cierre"
+    const btnGuardar=document.querySelector('#vPropinasForm .ma .bp');
+    if(btnGuardar)btnGuardar.style.display='none';
+  },50);else{
+    // Asegurar que el botón guardar esté visible cuando es editable
+    setTimeout(()=>{
+      const btnGuardar=document.querySelector('#vPropinasForm .ma .bp');
+      if(btnGuardar)btnGuardar.style.display='';
+    },50);
+  }
   renderColaboradoresPunto();
   recalcularPropina();
   showView('vPropinasForm');
@@ -1584,7 +1643,11 @@ window.renderColaboradoresPunto=function(){
 };
 
 window.setPuntos=function(empId,p){
-  if(PROP_CIERRE_EDIT&&!esMaster())return; // bloqueo edición
+  // Bloqueo: cierre pagado = NADIE puede editar; cierre no pagado = solo master
+  if(PROP_CIERRE_EDIT){
+    if(PROP_CIERRE_EDIT.pagado)return;
+    if(!esMaster())return;
+  }
   PROP_COLABS_PUNTOS[empId]=p;
   // Refrescar botones de esa fila
   const row=document.querySelector(`#pfPropina_${empId}`)?.parentElement;
@@ -1642,6 +1705,7 @@ window.recalcularPropina=function(){
 };
 
 window.guardarCierrePropina=async function(){
+  if(PROP_CIERRE_EDIT?.pagado){toast('Este cierre ya fue pagado y no se puede editar. Revertí el pago primero.');return;}
   if(PROP_CIERRE_EDIT&&!esMaster()){toast('Solo master puede editar cierres ya guardados');return;}
   const local=document.getElementById('pfLocal').value;
   const fecha=document.getElementById('pfFecha').value;
