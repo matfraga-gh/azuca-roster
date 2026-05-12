@@ -1354,7 +1354,10 @@ window.cambiarLocalPropina=async function(l){
 };
 
 async function loadCierres(){
-  if(!PROP_LOCAL_ACTUAL){document.getElementById('propCierresTbody').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:24px">Sin locales asignados</td></tr>';return;}
+  if(!PROP_LOCAL_ACTUAL){document.getElementById('propCierresTbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Sin locales asignados</td></tr>';return;}
+  // Ocultar columna de checkbox si no es master
+  const checkAllTh=document.getElementById('pcCheckAll')?.parentElement;
+  if(checkAllTh)checkAllTh.style.display=esMaster()?'':'none';
   const r=await api(`propinas_cierres?local=eq.${encodeURIComponent(PROP_LOCAL_ACTUAL)}&order=fecha.desc&limit=50`)||[];
   PROP_CIERRES=r;
   renderCierres();
@@ -1363,21 +1366,50 @@ async function loadCierres(){
 function renderCierres(){
   const tb=document.getElementById('propCierresTbody');
   if(!tb)return;
-  if(!PROP_CIERRES.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--gray);padding:24px">Sin cierres todavía. Apretá "+ Nuevo cierre" para empezar.</td></tr>';return;}
+  // Resumen
+  const totalBruto=PROP_CIERRES.reduce((s,c)=>s+parseFloat(c.total_bruto||0),0);
+  const totalNeto=PROP_CIERRES.reduce((s,c)=>s+parseFloat(c.total_neto||0),0);
+  const pendientes=PROP_CIERRES.filter(c=>!c.pagado);
+  const pagados=PROP_CIERRES.filter(c=>c.pagado);
+  const netoPendiente=pendientes.reduce((s,c)=>s+parseFloat(c.total_neto||0),0);
+  const netoPagado=pagados.reduce((s,c)=>s+parseFloat(c.total_neto||0),0);
+  const banner=document.getElementById('propResumenBanner');
+  if(banner){
+    if(!PROP_CIERRES.length){banner.style.display='none';}
+    else{
+      banner.style.display='grid';
+      banner.innerHTML=`
+        <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px">Cierres</div>
+          <div style="font-size:22px;font-weight:700">${PROP_CIERRES.length}</div>
+          <div style="font-size:11px;color:var(--gray)">${pendientes.length} pendientes · ${pagados.length} pagados</div>
+        </div>
+        <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:14px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gray);margin-bottom:4px">Total bruto acumulado</div>
+          <div style="font-size:22px;font-weight:700">$${formatNumber(totalBruto)}</div>
+        </div>
+        <div style="background:var(--white);border:2px solid var(--olive);border-radius:12px;padding:14px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--olive);margin-bottom:4px">Neto a liquidar</div>
+          <div style="font-size:22px;font-weight:700;color:var(--olive)">$${formatNumber(netoPendiente)}</div>
+          <div style="font-size:11px;color:var(--gray)">+$${formatNumber(netoPagado)} ya pagados</div>
+        </div>`;
+    }
+  }
+  if(!PROP_CIERRES.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Sin cierres todavía. Apretá "+ Nuevo cierre" para empezar.</td></tr>';actualizarBarraSeleccion();return;}
   tb.innerHTML=PROP_CIERRES.map(c=>{
     const usr=USUARIOS_R.find(u=>u.id===c.creado_por);
     const turnoTxt=c.turno==='mediodia'?'🌤 Mediodía':'🌙 Noche';
     const estadoBadge=c.pagado?'<span class="badge b-aprobado">✓ Pagado</span>':'<span class="badge b-procesada">Cerrado</span>';
     const puedeEditar=esMaster();
     let acciones=puedeEditar?`<button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Editar">✏️</button>`:`<button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="abrirCierre(${c.id})" title="Ver">👁</button>`;
-    if(esMaster()){
-      if(!c.pagado){
-        acciones+=` <button class="abtn ao" style="padding:4px 8px;font-size:11px;background:var(--olive);color:var(--white);border-color:var(--olive)" onclick="marcarPagado(${c.id})" title="Marcar como pagado">✓ Pagar</button>`;
-      }else{
-        acciones+=` <button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="desmarcarPagado(${c.id})" title="Revertir pago">↶</button>`;
-      }
+    if(esMaster()&&c.pagado){
+      acciones+=` <button class="abtn ab" style="padding:4px 8px;font-size:11px" onclick="desmarcarPagado(${c.id})" title="Revertir pago">↶</button>`;
     }
+    // Checkbox solo para master y cierres NO pagados
+    const checkbox=(esMaster()&&!c.pagado)?`<input type="checkbox" class="pc-check" value="${c.id}" data-neto="${c.total_neto||0}" onchange="actualizarBarraSeleccion()" style="width:auto;margin:0;cursor:pointer">`:'';
+    const tdCheck=esMaster()?`<td style="text-align:center;width:30px">${checkbox}</td>`:'';
     return `<tr>
+      ${tdCheck}
       <td style="font-weight:600">${fmt(c.fecha)}</td>
       <td>${turnoTxt}</td>
       <td style="font-size:12px">${esc(LOCAL_LABELS[c.local]||c.local)}</td>
@@ -1389,13 +1421,39 @@ function renderCierres(){
       <td style="white-space:nowrap">${acciones}</td>
     </tr>`;
   }).join('');
+  actualizarBarraSeleccion();
 }
 
-window.marcarPagado=async function(id){
-  if(!confirm('¿Marcar este cierre como pagado? Los colaboradores ya no lo verán en "Mi Propina" (queda archivado en el historial).'))return;
-  const r=await api(`propinas_cierres?id=eq.${id}`,'PATCH',{pagado:true,pagado_en:new Date().toISOString(),pagado_por:CU.id});
-  if(r===null){toast('Error al marcar como pagado');return;}
-  toast('✓ Cierre marcado como pagado');
+window.toggleSeleccionarTodos=function(){
+  const master=document.getElementById('pcCheckAll');
+  document.querySelectorAll('.pc-check').forEach(c=>{c.checked=master.checked;});
+  actualizarBarraSeleccion();
+};
+
+window.actualizarBarraSeleccion=function(){
+  const checks=[...document.querySelectorAll('.pc-check:checked')];
+  const barra=document.getElementById('pcBarraSeleccion');
+  const ckAll=document.getElementById('pcCheckAll');
+  if(ckAll){
+    const total=document.querySelectorAll('.pc-check').length;
+    ckAll.checked=total>0&&checks.length===total;
+    ckAll.indeterminate=checks.length>0&&checks.length<total;
+  }
+  if(!barra)return;
+  if(!checks.length){barra.style.display='none';return;}
+  barra.style.display='flex';
+  const sumaNeto=checks.reduce((s,c)=>s+parseFloat(c.dataset.neto||0),0);
+  document.getElementById('pcBarraTxt').innerHTML=`<strong>${checks.length}</strong> ${checks.length===1?'cierre seleccionado':'cierres seleccionados'} · Neto: <strong>$${formatNumber(sumaNeto)}</strong>`;
+};
+
+window.pagarSeleccionados=async function(){
+  const ids=[...document.querySelectorAll('.pc-check:checked')].map(c=>parseInt(c.value));
+  if(!ids.length)return;
+  if(!confirm(`¿Marcar ${ids.length} ${ids.length===1?'cierre':'cierres'} como pagados? Los colaboradores ya no los verán en "Mi Propina".`))return;
+  const ahora=new Date().toISOString();
+  const r=await api(`propinas_cierres?id=in.(${ids.join(',')})`,'PATCH',{pagado:true,pagado_en:ahora,pagado_por:CU.id});
+  if(r===null){toast('Error al marcar como pagados');return;}
+  toast(`✓ ${ids.length} ${ids.length===1?'cierre marcado':'cierres marcados'} como pagados`);
   loadCierres();
 };
 

@@ -541,8 +541,19 @@
     <div class="local-tabs-row">
       <div class="local-tabs" id="propLocalTabs"></div>
     </div>
+
+    <!-- Banner de totales -->
+    <div id="propResumenBanner" style="display:none;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px"></div>
+
+    <!-- Barra de acciones para selección múltiple -->
+    <div id="pcBarraSeleccion" style="display:none;background:var(--olive);color:var(--white);border-radius:10px;padding:10px 16px;margin-bottom:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div id="pcBarraTxt" style="font-size:13px"></div>
+      <button onclick="pagarSeleccionados()" style="background:var(--white);color:var(--olive);border:none;padding:7px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px">✓ Pagar seleccionados</button>
+    </div>
+
     <div class="tw"><table class="tbl">
       <thead><tr>
+        <th style="width:30px;text-align:center"><input type="checkbox" id="pcCheckAll" onchange="toggleSeleccionarTodos()" style="width:auto;margin:0;cursor:pointer" title="Seleccionar todos"></th>
         <th>Fecha</th>
         <th>Turno</th>
         <th>Local</th>
