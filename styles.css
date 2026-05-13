@@ -215,3 +215,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--dark);
 .pt-btn:hover{border-color:var(--olive)}
 .pt-btn.active{background:var(--olive);color:var(--white);border-color:var(--olive)}
 .pt-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* BIBLIOTECA */
+.bib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.bib-card{background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:18px 16px;cursor:pointer;transition:all .2s;position:relative;display:flex;flex-direction:column;gap:6px;min-height:120px}
+.bib-card:hover{transform:translateY(-2px);border-color:var(--olive);box-shadow:0 4px 14px rgba(92,107,58,.12)}
+.bib-card.destacado{border-color:var(--rust);background:linear-gradient(180deg,#FFF7F0 0%,var(--white) 60%)}
+.bib-card.visto{opacity:.85}
+.bib-badge-destacado{position:absolute;top:8px;right:8px;background:var(--rust);color:var(--white);font-size:9px;font-weight:700;padding:3px 8px;border-radius:12px;letter-spacing:.5px;text-transform:uppercase}
+.bib-badge-visto{position:absolute;top:8px;right:8px;background:var(--green);color:var(--white);font-size:9px;font-weight:700;padding:3px 8px;border-radius:12px;letter-spacing:.5px;text-transform:uppercase}
+.bib-card.destacado .bib-badge-visto{top:34px}
+.bib-card-cat{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--olive);margin-top:4px}
+.bib-card-titulo{font-family:'Playfair Display',serif;font-size:17px;color:var(--dark);line-height:1.25;margin-top:2px}
+.bib-card-desc{font-size:12px;color:var(--gray);line-height:1.4;flex:1}
+
+@media(max-width:600px){
+  .bib-grid{grid-template-columns:1fr}
+}

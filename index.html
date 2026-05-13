@@ -174,6 +174,98 @@
   </div>
 </div>
 
+<!-- BIBLIOTECA (vista colaborador) -->
+<div id="vBiblioteca" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Mi Biblioteca</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" id="bibBtnAdmin" onclick="showView('vBibliotecaAdmin')" style="display:none">⚙ Administrar</button>
+      <button class="abtn ab" onclick="showView('vDash')">← Dashboard</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Mi Biblioteca</h1>
+    <p class="psub">Material de capacitación, procedimientos y novedades del grupo.</p>
+    <div class="toolbar">
+      <input type="text" id="bibSearch" placeholder="Buscar..." oninput="renderBiblioteca()">
+      <select id="bibFiltCategoria" onchange="renderBiblioteca()">
+        <option value="">Todas las categorías</option>
+      </select>
+    </div>
+    <div id="bibContenido" class="bib-grid"></div>
+  </div>
+</div>
+
+<!-- BIBLIOTECA ADMIN (vista master / editor biblioteca) -->
+<div id="vBibliotecaAdmin" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Administrar Biblioteca</div></div>
+    <div class="app-btns">
+      <button class="abtn ao" onclick="openBibContenidoModal()">+ Nuevo contenido</button>
+      <button class="abtn as" onclick="openBibCategoriasModal()">Categorías</button>
+      <button class="abtn ao" id="bibBtnEditores" onclick="showView('vBibliotecaEditores')" style="display:none">👥 Editores</button>
+      <button class="abtn ab" onclick="showView('vBiblioteca')">← Biblioteca</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Administrar Biblioteca</h1>
+    <p class="psub">Gestioná el contenido visible para los colaboradores.</p>
+    <div class="toolbar">
+      <input type="text" id="bibAdmSearch" placeholder="Buscar..." oninput="renderBibAdmin()">
+      <select id="bibAdmFiltCategoria" onchange="renderBibAdmin()">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="bibAdmFiltEstado" onchange="renderBibAdmin()">
+        <option value="">Activos e inactivos</option>
+        <option value="activo">Solo activos</option>
+        <option value="inactivo">Solo inactivos</option>
+      </select>
+    </div>
+    <div class="tw"><table class="tbl">
+      <thead><tr>
+        <th>Título</th>
+        <th>Tipo</th>
+        <th>Categoría</th>
+        <th>Filtros</th>
+        <th style="text-align:center">Vistas</th>
+        <th>Estado</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="bibAdmTbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- BIBLIOTECA EDITORES (solo master) -->
+<div id="vBibliotecaEditores" class="view">
+  <div class="app-hdr">
+    <div><div class="app-brand">a<span>z</span>uca</div><div class="app-sec">Editores de Biblioteca</div></div>
+    <div class="app-btns">
+      <button class="abtn ab" onclick="showView('vBibliotecaAdmin')">← Administrar</button>
+    </div>
+  </div>
+  <div class="content">
+    <h1 class="ptitle">Editores de Biblioteca</h1>
+    <p class="psub">Usuarios habilitados para subir y editar contenido de la biblioteca (rol estilo RRHH).</p>
+    <div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:600;font-size:14px">📚 Usuarios con permiso de editor</div>
+        <button class="abtn ao" onclick="openBibEditorModal()">+ Asignar</button>
+      </div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:12px">Pueden subir/editar contenido pero no acceden al resto de funciones de master.</p>
+      <div class="tw"><table class="tbl">
+        <thead><tr>
+          <th>Nombre</th>
+          <th>Usuario</th>
+          <th>Perfil base</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="bibEditTbody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODALES ══ -->
 
 <!-- Modal Turno -->
@@ -766,6 +858,150 @@
     <div class="ma">
       <button class="btn bs" onclick="closeOv('ovAplicarTE')">Cancelar</button>
       <button class="btn bp" onclick="aplicarTurnoEst()">Aplicar a esta semana</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Contenido de Biblioteca (nuevo/editar) -->
+<div class="overlay" id="ovBibContenido">
+  <div class="modal" style="max-width:640px">
+    <button class="mc" onclick="closeOv('ovBibContenido')">✕</button>
+    <h2 id="bibContModalTitle">Nuevo contenido</h2>
+    <div class="frow">
+      <div class="fg"><label>Tipo de contenido</label>
+        <select id="bibTipo" onchange="cambiarTipoContenido()">
+          <option value="link">🔗 Link externo (YouTube, Spotify, Drive...)</option>
+          <option value="pdf">📄 PDF (subir archivo)</option>
+          <option value="texto">📝 Texto / Frase / Nota</option>
+        </select>
+      </div>
+      <div class="fg"><label>Categoría</label>
+        <select id="bibCategoria"></select>
+      </div>
+    </div>
+    <div class="fg full" style="margin-bottom:12px">
+      <label>Título</label>
+      <input type="text" id="bibTitulo" placeholder="Ej: Instructivo de Posnet">
+    </div>
+    <div class="fg full" style="margin-bottom:12px">
+      <label>Descripción (opcional)</label>
+      <textarea id="bibDescripcion" placeholder="Breve descripción del contenido..."></textarea>
+    </div>
+    <!-- Link -->
+    <div id="bibCampoLink" class="fg full" style="margin-bottom:12px">
+      <label>URL del contenido</label>
+      <input type="url" id="bibUrl" placeholder="https://...">
+    </div>
+    <!-- PDF -->
+    <div id="bibCampoPdf" class="fg full" style="display:none;margin-bottom:12px">
+      <label>Archivo PDF (máx 50 MB)</label>
+      <input type="file" id="bibPdfFile" accept="application/pdf">
+      <div id="bibPdfActual" style="font-size:11px;color:var(--olive);margin-top:6px;display:none"></div>
+    </div>
+    <!-- Texto -->
+    <div id="bibCampoTexto" class="fg full" style="display:none;margin-bottom:12px">
+      <label>Contenido del texto</label>
+      <textarea id="bibTextoBody" rows="6" placeholder="Escribí acá la frase, nota, instructivo o cualquier contenido..."></textarea>
+    </div>
+
+    <div style="background:var(--cream);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:10px">Filtros (vacío = todos lo ven)</div>
+
+      <div class="fg full" style="margin-bottom:10px">
+        <label style="font-size:11px">Sectores</label>
+        <div id="bibSectoresCheck" class="locales-check"></div>
+      </div>
+
+      <div class="fg full" style="margin-bottom:10px">
+        <label style="font-size:11px">Cargos</label>
+        <div id="bibCargosCheck" style="max-height:140px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:6px;background:var(--white);padding:8px;border-radius:8px;border:1px solid var(--sand)"></div>
+      </div>
+
+      <div class="fg full">
+        <label style="font-size:11px">Locales</label>
+        <div id="bibLocalesCheck" class="locales-check">
+          <label><input type="checkbox" value="1-AZUCA"> Azuca</label>
+          <label><input type="checkbox" value="2-AZAFRAN"> Azafrán</label>
+          <label><input type="checkbox" value="3-NIETO"> Nieto</label>
+          <label><input type="checkbox" value="4-VIÑA COBOS"> Viña Cobos</label>
+          <label><input type="checkbox" value="5-TRAPICHE"> Trapiche</label>
+          <label><input type="checkbox" value="VINOBIEN"> Vinobien</label>
+        </div>
+      </div>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px;background:var(--white);border:1px solid var(--sand-l);border-radius:8px;margin-bottom:12px">
+      <input type="checkbox" id="bibDestacado" style="width:auto;margin:0">
+      <span style="font-size:13px;font-weight:600">⭐ Marcar como destacado (aparece arriba)</span>
+    </label>
+
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovBibContenido')">Cancelar</button>
+      <button class="btn bd" id="bibBtnBorrar" onclick="borrarBibContenido()" style="display:none">Eliminar</button>
+      <button class="btn bp" onclick="guardarBibContenido()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gestión de Categorías -->
+<div class="overlay" id="ovBibCategorias">
+  <div class="modal" style="max-width:480px">
+    <button class="mc" onclick="closeOv('ovBibCategorias')">✕</button>
+    <h2>Categorías</h2>
+    <div id="bibCatList" style="margin-bottom:14px"></div>
+    <div style="background:var(--cream);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray);margin-bottom:8px">Nueva categoría</div>
+      <div class="frow" style="grid-template-columns:60px 1fr">
+        <div class="fg"><label>Icono</label><input type="text" id="bibCatIcono" placeholder="📚" maxlength="2"></div>
+        <div class="fg"><label>Nombre</label><input type="text" id="bibCatNombre" placeholder="Ej: Recetas"></div>
+      </div>
+      <button class="btn bp" onclick="crearBibCategoria()" style="width:100%;margin-top:8px">+ Agregar categoría</button>
+    </div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovBibCategorias')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ver contenido (lector) -->
+<div class="overlay" id="ovBibLector">
+  <div class="modal" style="max-width:680px">
+    <button class="mc" onclick="closeOv('ovBibLector')">✕</button>
+    <h2 id="bibLectorTitle"></h2>
+    <div id="bibLectorMeta" style="font-size:12px;color:var(--gray);margin-bottom:14px"></div>
+    <div id="bibLectorContent" style="margin-bottom:16px"></div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovBibLector')">Cerrar</button>
+      <button class="btn bp" id="bibBtnVisto" onclick="marcarVisto()">✓ Marcar como visto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ver listado de quién vio el contenido -->
+<div class="overlay" id="ovBibVistas">
+  <div class="modal" style="max-width:520px">
+    <button class="mc" onclick="closeOv('ovBibVistas')">✕</button>
+    <h2 id="bibVistasTitle">Vistas</h2>
+    <div id="bibVistasInfo" style="font-size:13px;color:var(--gray);margin-bottom:12px"></div>
+    <div id="bibVistasList" style="max-height:400px;overflow-y:auto"></div>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovBibVistas')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Asignar editor de biblioteca -->
+<div class="overlay" id="ovBibEditor">
+  <div class="modal" style="max-width:480px">
+    <button class="mc" onclick="closeOv('ovBibEditor')">✕</button>
+    <h2>Asignar editor de biblioteca</h2>
+    <div class="fg full"><label>Usuario</label>
+      <select id="bibEdUsuario"></select>
+    </div>
+    <p style="font-size:12px;color:var(--gray);margin-top:10px">Este usuario podrá subir, editar y eliminar contenido de la biblioteca, pero no tendrá acceso al resto de funciones de master.</p>
+    <div class="ma">
+      <button class="btn bs" onclick="closeOv('ovBibEditor')">Cancelar</button>
+      <button class="btn bp" onclick="guardarBibEditor()">Asignar</button>
     </div>
   </div>
 </div>

@@ -116,6 +116,11 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 function doLogout(){CU=null;sessionStorage.removeItem('az_roster_cu');showView('vLogin');}
 window.doLogout=doLogout;
 async function afterLogin(){
+  // Refrescar usuario desde BD para asegurar que tenga los campos más nuevos (ej: editor_biblioteca)
+  try{
+    const fresh=await api(`roster_usuarios?id=eq.${CU.id}&select=*`);
+    if(fresh&&fresh.length){CU=fresh[0];sessionStorage.setItem('az_roster_cu',JSON.stringify(CU));}
+  }catch(e){console.warn('No se pudo refrescar usuario:',e);}
   const perfil={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'}[CU.perfil]||CU.perfil;
   document.getElementById('dashUser').textContent=`${CU.nombre} · ${perfil}`;
   await loadMisLocalesPropina();
@@ -129,6 +134,7 @@ function buildDash(){
   if(esEditorPerfil())cards.push({i:'📅',t:'Roster Semanal',d:'Ver y editar turnos del equipo',a:"showView('vRoster')"});
   cards.push({i:'📱',t:'Mi Semana',d:'Ver mis turnos asignados',a:"showView('vMiSemanaView')"});
   cards.push({i:'💰',t:'Mi Propina',d:'Ver mis propinas acumuladas',a:"showView('vMiPropina')"});
+  cards.push({i:'📚',t:'Mi Biblioteca',d:'Capacitación, novedades y recursos',a:"showView('vBiblioteca')"});
   if(esEditorPerfil())cards.push({i:'⚠️',t:'Incidencias',d:'Tardanzas, ausencias y cambios',a:"showView('vIncidencias')"});
   if(esEditorPropina())cards.push({i:'💰',t:'Gestión de Propinas',d:'Cierres de caja y reparto',a:"showView('vPropinas')"});
   if(esMaster()){
@@ -152,6 +158,8 @@ function showView(id){
   if((id==='vRoster'||id==='vIncidencias')&&!esEditorPerfil()){toast('Sin permiso');return;}
   if((id==='vEmpleados'||id==='vUsuarios'||id==='vTurnos'||id==='vHistorial'||id==='vPropinasConfig'||id==='vPropinasResumen')&&!esMaster()){toast('Solo master');return;}
   if((id==='vPropinas'||id==='vPropinasForm')&&!esEditorPropina()){toast('Sin permiso para propinas');return;}
+  if((id==='vBibliotecaAdmin')&&!esEditorBiblioteca()){toast('Sin permiso para administrar biblioteca');return;}
+  if((id==='vBibliotecaEditores')&&!esMaster()){toast('Solo master');return;}
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById(id==='vMiSemanaView'?'vMiSemana':id).classList.add('active');
   if(id==='vRoster')initRoster();
@@ -165,6 +173,9 @@ function showView(id){
   if(id==='vPropinas')loadPropinas();
   if(id==='vMiPropina')loadMiPropina();
   if(id==='vPropinasResumen')loadPropinasResumen();
+  if(id==='vBiblioteca')initBiblioteca();
+  if(id==='vBibliotecaAdmin')initBibliotecaAdmin();
+  if(id==='vBibliotecaEditores')initBibliotecaEditores();
   // Auto-refresh de incidencias solo en el roster
   if(window._incRefreshTimer){clearInterval(window._incRefreshTimer);window._incRefreshTimer=null;}
   if(id==='vRoster'){
@@ -1893,6 +1904,539 @@ window.borrarEditorPropina=async function(){
   toast('✓ Editor quitado');
   closeOv('ovEditorProp');
   loadEditoresPropina();
+};
+
+// ── BIBLIOTECA ────────────────────────────────────
+let BIB_CATEGORIAS=[],BIB_CONTENIDO=[],BIB_VISTAS_MAP={},BIB_EDIT_ID=null;
+let BIB_CARGOS_CACHE=[]; // cargos únicos derivados de EMPLEADOS
+const BIB_SECTORES=['COCINA','SALA','CAVA','ORDENANZA','SEGURIDAD','ADMINISTRACION','GERENCIA'];
+const BIB_BUCKET='biblioteca-pdfs';
+
+// Permisos
+function esEditorBiblioteca(){return esMaster()||CU?.editor_biblioteca===true;}
+
+// Carga inicial: categorías + contenido + vistas del usuario actual
+async function loadBibliotecaData(){
+  const cats=await api('biblioteca_categorias?order=orden.asc,nombre.asc')||[];
+  BIB_CATEGORIAS=cats;
+  // Para el filtro y admin: traer TODO el contenido (filtrado en frontend según rol)
+  const cont=await api('biblioteca_contenido?select=*&order=destacado.desc,creado_en.desc')||[];
+  BIB_CONTENIDO=cont;
+  // Vistas del colaborador vinculado al usuario actual
+  BIB_VISTAS_MAP={};
+  if(CU?.empleado_id){
+    const vistas=await api(`biblioteca_vistas?colaborador_id=eq.${CU.empleado_id}&select=contenido_id,visto_en`)||[];
+    vistas.forEach(v=>{BIB_VISTAS_MAP[v.contenido_id]=v.visto_en;});
+  }
+}
+
+// Vista colaborador
+async function initBiblioteca(){
+  // Necesitamos EMPLEADOS para conocer sector/cargo/local del usuario actual
+  if(!EMPLEADOS.length)await loadEmpleados(false);
+  await loadBibliotecaData();
+  // Botón admin solo si es editor de biblioteca o master
+  document.getElementById('bibBtnAdmin').style.display=esEditorBiblioteca()?'':'none';
+  // Poblar filtro de categorías
+  const sel=document.getElementById('bibFiltCategoria');
+  sel.innerHTML='<option value="">Todas las categorías</option>'+
+    BIB_CATEGORIAS.map(c=>`<option value="${c.id}">${esc(c.icono||'📚')} ${esc(c.nombre)}</option>`).join('');
+  renderBiblioteca();
+}
+
+function obtenerEmpleadoActual(){
+  if(!CU?.empleado_id||!EMPLEADOS.length)return null;
+  return EMPLEADOS.find(e=>e.id===CU.empleado_id)||null;
+}
+
+// Determina si un contenido es visible para el colaborador actual
+function contenidoVisibleParaUsuario(c){
+  if(!c.activo)return false;
+  // Master siempre ve todo; editor de biblioteca también
+  if(esEditorBiblioteca())return true;
+  // Si no tiene empleado vinculado, solo ve los "para todos"
+  const emp=obtenerEmpleadoActual();
+  const sectores=c.sectores||[],cargos=c.cargos||[],locales=c.locales||[];
+  // Si no hay filtros, lo ven todos
+  const sinFiltros=!sectores.length&&!cargos.length&&!locales.length;
+  if(sinFiltros)return true;
+  if(!emp)return false;
+  // Reglas: si hay sectores definidos, el sector del empleado debe estar; ídem cargos/locales
+  if(sectores.length&&!sectores.includes(emp.sector))return false;
+  if(cargos.length&&!cargos.includes(emp.cargo))return false;
+  if(locales.length){
+    // Si es multilocal, ve contenido de cualquier local. Sino, debe coincidir su local.
+    if(!emp.es_multilocal&&!locales.includes(emp.local))return false;
+  }
+  return true;
+}
+
+function renderBiblioteca(){
+  const q=(document.getElementById('bibSearch').value||'').toLowerCase().trim();
+  const filtCat=document.getElementById('bibFiltCategoria').value;
+  let items=BIB_CONTENIDO.filter(contenidoVisibleParaUsuario);
+  if(filtCat)items=items.filter(c=>String(c.categoria_id)===filtCat);
+  if(q)items=items.filter(c=>(c.titulo||'').toLowerCase().includes(q)||(c.descripcion||'').toLowerCase().includes(q));
+  const cont=document.getElementById('bibContenido');
+  if(!items.length){
+    cont.innerHTML=`<div class="empty"><div class="icon">📚</div>No hay contenido disponible${q||filtCat?' con esos filtros':''}.</div>`;
+    return;
+  }
+  // Orden: destacados primero, luego por fecha
+  items.sort((a,b)=>{
+    if(a.destacado!==b.destacado)return b.destacado-a.destacado;
+    return new Date(b.creado_en)-new Date(a.creado_en);
+  });
+  cont.innerHTML=items.map(c=>{
+    const cat=BIB_CATEGORIAS.find(x=>x.id===c.categoria_id);
+    const visto=BIB_VISTAS_MAP[c.id];
+    const tipoIcon={link:'🔗',pdf:'📄',texto:'📝'}[c.tipo]||'📚';
+    return `<div class="bib-card${c.destacado?' destacado':''}${visto?' visto':''}" onclick="abrirBibContenido(${c.id})">
+      ${c.destacado?'<div class="bib-badge-destacado">⭐ Destacado</div>':''}
+      ${visto?'<div class="bib-badge-visto">✓ Visto</div>':''}
+      <div class="bib-card-cat">${cat?esc(cat.icono||'📚')+' '+esc(cat.nombre):'Sin categoría'}</div>
+      <div class="bib-card-titulo">${tipoIcon} ${esc(c.titulo)}</div>
+      ${c.descripcion?`<div class="bib-card-desc">${esc(c.descripcion)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+window.renderBiblioteca=renderBiblioteca;
+
+// Abrir contenido en modal lector
+window.abrirBibContenido=async function(id){
+  const c=BIB_CONTENIDO.find(x=>x.id===id);
+  if(!c)return;
+  const cat=BIB_CATEGORIAS.find(x=>x.id===c.categoria_id);
+  document.getElementById('bibLectorTitle').textContent=c.titulo;
+  document.getElementById('bibLectorMeta').textContent=`${cat?cat.icono+' '+cat.nombre+' · ':''}${({link:'Link externo',pdf:'PDF',texto:'Texto'}[c.tipo])||''}`;
+  let body='';
+  if(c.descripcion)body+=`<p style="font-size:13px;color:var(--gray);margin-bottom:14px">${esc(c.descripcion)}</p>`;
+  if(c.tipo==='link'){
+    body+=`<a href="${esc(c.url)}" target="_blank" rel="noopener" style="display:block;background:var(--olive);color:var(--white);padding:14px 20px;border-radius:10px;text-align:center;text-decoration:none;font-weight:600">🔗 Abrir link en una nueva pestaña</a>`;
+    body+=`<div style="font-size:11px;color:var(--gray);margin-top:8px;word-break:break-all;text-align:center">${esc(c.url)}</div>`;
+  }else if(c.tipo==='pdf'){
+    body+=`<a href="${esc(c.url)}" target="_blank" rel="noopener" style="display:block;background:var(--rust);color:var(--white);padding:14px 20px;border-radius:10px;text-align:center;text-decoration:none;font-weight:600;margin-bottom:10px">📄 Abrir PDF en una nueva pestaña</a>`;
+    body+=`<iframe src="${esc(c.url)}" style="width:100%;height:400px;border:1px solid var(--sand-l);border-radius:8px"></iframe>`;
+  }else if(c.tipo==='texto'){
+    body+=`<div style="background:var(--cream);border-radius:10px;padding:18px;font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(c.contenido_texto||'')}</div>`;
+  }
+  document.getElementById('bibLectorContent').innerHTML=body;
+  // Botón visto
+  const btnV=document.getElementById('bibBtnVisto');
+  if(BIB_VISTAS_MAP[c.id]){
+    btnV.textContent='✓ Ya marcado como visto';
+    btnV.disabled=true;
+    btnV.style.opacity='.6';
+  }else{
+    btnV.textContent='✓ Marcar como visto';
+    btnV.disabled=false;
+    btnV.style.opacity='1';
+    btnV.dataset.contenidoId=c.id;
+  }
+  openOv('ovBibLector');
+};
+
+window.marcarVisto=async function(){
+  const btn=document.getElementById('bibBtnVisto');
+  const id=parseInt(btn.dataset.contenidoId);
+  if(!id||!CU?.empleado_id){toast('Necesitás un colaborador vinculado para marcar como visto');return;}
+  const r=await api('biblioteca_vistas','POST',{contenido_id:id,colaborador_id:CU.empleado_id});
+  if(r===null){toast('Error al marcar como visto');return;}
+  BIB_VISTAS_MAP[id]=new Date().toISOString();
+  toast('✓ Marcado como visto');
+  btn.textContent='✓ Ya marcado como visto';
+  btn.disabled=true;
+  btn.style.opacity='.6';
+  renderBiblioteca();
+};
+
+// ── BIBLIOTECA: ADMIN ────────────────────────────
+async function initBibliotecaAdmin(){
+  await loadBibliotecaData();
+  await loadEmpleados(false);
+  // Construir cache de cargos únicos
+  const cargosSet=new Set();
+  EMPLEADOS.forEach(e=>{if(e.cargo)cargosSet.add(e.cargo);});
+  BIB_CARGOS_CACHE=[...cargosSet].sort();
+  // Cargar conteo de vistas
+  await loadBibVistasConteo();
+  // Botón editores solo master
+  document.getElementById('bibBtnEditores').style.display=esMaster()?'':'none';
+  // Filtro categorías
+  const sel=document.getElementById('bibAdmFiltCategoria');
+  sel.innerHTML='<option value="">Todas las categorías</option>'+
+    BIB_CATEGORIAS.map(c=>`<option value="${c.id}">${esc(c.icono||'📚')} ${esc(c.nombre)}</option>`).join('');
+  renderBibAdmin();
+}
+
+let BIB_VISTAS_CONTEO={}; // {contenido_id: count}
+async function loadBibVistasConteo(){
+  const all=await api('biblioteca_vistas?select=contenido_id')||[];
+  BIB_VISTAS_CONTEO={};
+  all.forEach(v=>{BIB_VISTAS_CONTEO[v.contenido_id]=(BIB_VISTAS_CONTEO[v.contenido_id]||0)+1;});
+}
+
+function renderBibAdmin(){
+  const q=(document.getElementById('bibAdmSearch').value||'').toLowerCase().trim();
+  const filtCat=document.getElementById('bibAdmFiltCategoria').value;
+  const filtEst=document.getElementById('bibAdmFiltEstado').value;
+  let items=[...BIB_CONTENIDO];
+  if(filtCat)items=items.filter(c=>String(c.categoria_id)===filtCat);
+  if(filtEst==='activo')items=items.filter(c=>c.activo);
+  if(filtEst==='inactivo')items=items.filter(c=>!c.activo);
+  if(q)items=items.filter(c=>(c.titulo||'').toLowerCase().includes(q));
+  const tb=document.getElementById('bibAdmTbody');
+  if(!items.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:24px">Sin contenido</td></tr>';return;}
+  // Calcular el total de colaboradores que potencialmente verían cada contenido
+  const empActivos=EMPLEADOS.filter(e=>e.activo!==false);
+  tb.innerHTML=items.map(c=>{
+    const cat=BIB_CATEGORIAS.find(x=>x.id===c.categoria_id);
+    const filtros=[];
+    if(c.sectores?.length)filtros.push(c.sectores.length+' sectores');
+    if(c.cargos?.length)filtros.push(c.cargos.length+' cargos');
+    if(c.locales?.length)filtros.push(c.locales.length+' locales');
+    if(!filtros.length)filtros.push('Todos');
+    const tipoLbl={link:'🔗 Link',pdf:'📄 PDF',texto:'📝 Texto'}[c.tipo]||c.tipo;
+    const vistas=BIB_VISTAS_CONTEO[c.id]||0;
+    // Total potencial
+    const alcance=empActivos.filter(e=>{
+      const s=c.sectores||[],ca=c.cargos||[],l=c.locales||[];
+      if(!s.length&&!ca.length&&!l.length)return true;
+      if(s.length&&!s.includes(e.sector))return false;
+      if(ca.length&&!ca.includes(e.cargo))return false;
+      if(l.length){
+        if(!e.es_multilocal&&!l.includes(e.local))return false;
+      }
+      return true;
+    }).length;
+    return `<tr>
+      <td style="font-weight:600">${c.destacado?'⭐ ':''}${esc(c.titulo)}</td>
+      <td style="font-size:12px">${tipoLbl}</td>
+      <td style="font-size:12px">${cat?esc(cat.icono+' '+cat.nombre):'—'}</td>
+      <td style="font-size:11px;color:var(--gray)">${filtros.join(' · ')}</td>
+      <td style="text-align:center;font-size:12px"><a href="#" onclick="verVistas(${c.id});return false" style="color:var(--olive);text-decoration:none;font-weight:600">${vistas} / ${alcance}</a></td>
+      <td><span class="badge ${c.activo?'b-aprobado':'b-rechazado'}">${c.activo?'Activo':'Inactivo'}</span></td>
+      <td style="display:flex;gap:4px">
+        <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="editBibContenido(${c.id})">✏️</button>
+        <button class="abtn ${c.activo?'as':'ao'}" style="padding:4px 8px;font-size:11px" onclick="toggleBibContenido(${c.id},${c.activo})">${c.activo?'⊘':'✓'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+window.renderBibAdmin=renderBibAdmin;
+
+window.verVistas=async function(id){
+  const c=BIB_CONTENIDO.find(x=>x.id===id);if(!c)return;
+  document.getElementById('bibVistasTitle').textContent='Vistas: '+c.titulo;
+  // Cargar nombres de los que vieron
+  const vistas=await api(`biblioteca_vistas?contenido_id=eq.${id}&select=colaborador_id,visto_en&order=visto_en.desc`)||[];
+  if(!EMPLEADOS.length)await loadEmpleados(false);
+  // Total potencial
+  const empActivos=EMPLEADOS.filter(e=>e.activo!==false);
+  const alcance=empActivos.filter(e=>{
+    const s=c.sectores||[],ca=c.cargos||[],l=c.locales||[];
+    if(!s.length&&!ca.length&&!l.length)return true;
+    if(s.length&&!s.includes(e.sector))return false;
+    if(ca.length&&!ca.includes(e.cargo))return false;
+    if(l.length){
+      if(!e.es_multilocal&&!l.includes(e.local))return false;
+    }
+    return true;
+  });
+  document.getElementById('bibVistasInfo').innerHTML=`<strong>${vistas.length}</strong> de <strong>${alcance.length}</strong> colaboradores marcaron este contenido como visto.`;
+  if(!vistas.length){
+    document.getElementById('bibVistasList').innerHTML='<div style="text-align:center;color:var(--gray);padding:20px;font-size:13px">Nadie marcó este contenido como visto todavía.</div>';
+  }else{
+    document.getElementById('bibVistasList').innerHTML=vistas.map(v=>{
+      const emp=EMPLEADOS.find(e=>e.id===v.colaborador_id);
+      const dt=new Date(v.visto_en);
+      const cuando=dt.toLocaleDateString('es-AR')+' '+dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+      return `<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600;font-size:13px">${esc(emp?`${emp.apellido||''} ${emp.nombre||''}`.trim():'(colaborador eliminado)')}</div>
+          <div style="font-size:11px;color:var(--gray)">${esc(emp?.local||'')} · ${esc(emp?.sector||'')}</div>
+        </div>
+        <div style="font-size:11px;color:var(--gray)">${cuando}</div>
+      </div>`;
+    }).join('');
+  }
+  openOv('ovBibVistas');
+};
+
+// Abrir modal nuevo / editar contenido
+window.openBibContenidoModal=function(){
+  BIB_EDIT_ID=null;
+  document.getElementById('bibContModalTitle').textContent='Nuevo contenido';
+  document.getElementById('bibBtnBorrar').style.display='none';
+  document.getElementById('bibTitulo').value='';
+  document.getElementById('bibDescripcion').value='';
+  document.getElementById('bibUrl').value='';
+  document.getElementById('bibTextoBody').value='';
+  document.getElementById('bibPdfFile').value='';
+  document.getElementById('bibPdfActual').style.display='none';
+  document.getElementById('bibDestacado').checked=false;
+  document.getElementById('bibTipo').value='link';
+  cambiarTipoContenido();
+  // Cargar categorías
+  document.getElementById('bibCategoria').innerHTML='<option value="">Sin categoría</option>'+
+    BIB_CATEGORIAS.map(c=>`<option value="${c.id}">${esc(c.icono||'📚')} ${esc(c.nombre)}</option>`).join('');
+  // Sectores
+  document.getElementById('bibSectoresCheck').innerHTML=BIB_SECTORES.map(s=>
+    `<label><input type="checkbox" class="bib-sec" value="${esc(s)}"> ${esc(s)}</label>`).join('');
+  // Cargos
+  document.getElementById('bibCargosCheck').innerHTML=BIB_CARGOS_CACHE.map(c=>
+    `<label style="display:flex;align-items:center;gap:4px;font-size:11px;padding:4px 8px;border:1px solid var(--sand);border-radius:14px;cursor:pointer;background:var(--white)"><input type="checkbox" class="bib-car" value="${esc(c)}" style="width:auto;margin:0"> ${esc(c)}</label>`).join('');
+  // Locales (resetear)
+  document.querySelectorAll('#bibLocalesCheck input').forEach(cb=>cb.checked=false);
+  openOv('ovBibContenido');
+};
+
+window.editBibContenido=async function(id){
+  const c=BIB_CONTENIDO.find(x=>x.id===id);
+  if(!c){toast('No encontrado');return;}
+  if(!BIB_CARGOS_CACHE.length){
+    if(!EMPLEADOS.length)await loadEmpleados(false);
+    BIB_CARGOS_CACHE=[...new Set(EMPLEADOS.map(e=>e.cargo).filter(Boolean))].sort();
+  }
+  BIB_EDIT_ID=id;
+  document.getElementById('bibContModalTitle').textContent='Editar contenido';
+  document.getElementById('bibBtnBorrar').style.display='';
+  document.getElementById('bibTitulo').value=c.titulo||'';
+  document.getElementById('bibDescripcion').value=c.descripcion||'';
+  document.getElementById('bibTipo').value=c.tipo;
+  document.getElementById('bibUrl').value=c.tipo==='link'?(c.url||''):'';
+  document.getElementById('bibTextoBody').value=c.contenido_texto||'';
+  document.getElementById('bibPdfFile').value='';
+  if(c.tipo==='pdf'&&c.url){
+    document.getElementById('bibPdfActual').textContent='✓ PDF actual cargado (subí uno nuevo solo si querés reemplazarlo)';
+    document.getElementById('bibPdfActual').style.display='block';
+  }else{
+    document.getElementById('bibPdfActual').style.display='none';
+  }
+  document.getElementById('bibDestacado').checked=!!c.destacado;
+  cambiarTipoContenido();
+  // Categorías
+  document.getElementById('bibCategoria').innerHTML='<option value="">Sin categoría</option>'+
+    BIB_CATEGORIAS.map(cat=>`<option value="${cat.id}" ${cat.id===c.categoria_id?'selected':''}>${esc(cat.icono||'📚')} ${esc(cat.nombre)}</option>`).join('');
+  // Sectores
+  document.getElementById('bibSectoresCheck').innerHTML=BIB_SECTORES.map(s=>
+    `<label><input type="checkbox" class="bib-sec" value="${esc(s)}" ${(c.sectores||[]).includes(s)?'checked':''}> ${esc(s)}</label>`).join('');
+  // Cargos
+  document.getElementById('bibCargosCheck').innerHTML=BIB_CARGOS_CACHE.map(ca=>
+    `<label style="display:flex;align-items:center;gap:4px;font-size:11px;padding:4px 8px;border:1px solid var(--sand);border-radius:14px;cursor:pointer;background:var(--white)"><input type="checkbox" class="bib-car" value="${esc(ca)}" ${(c.cargos||[]).includes(ca)?'checked':''} style="width:auto;margin:0"> ${esc(ca)}</label>`).join('');
+  // Locales
+  document.querySelectorAll('#bibLocalesCheck input').forEach(cb=>{cb.checked=(c.locales||[]).includes(cb.value);});
+  openOv('ovBibContenido');
+};
+
+window.cambiarTipoContenido=function(){
+  const t=document.getElementById('bibTipo').value;
+  document.getElementById('bibCampoLink').style.display=t==='link'?'':'none';
+  document.getElementById('bibCampoPdf').style.display=t==='pdf'?'':'none';
+  document.getElementById('bibCampoTexto').style.display=t==='texto'?'':'none';
+};
+
+// Subida de PDF a Supabase Storage usando REST
+async function subirPdfStorage(file){
+  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=`${Date.now()}_${safe}`;
+  const url=`${SU}/storage/v1/object/${BIB_BUCKET}/${path}`;
+  const r=await fetch(url,{
+    method:'POST',
+    headers:{
+      'apikey':SK,
+      'Authorization':'Bearer '+SK,
+      'Content-Type':'application/pdf',
+      'x-upsert':'false'
+    },
+    body:file
+  });
+  if(!r.ok){const e=await r.text();console.error('Upload error:',e);return null;}
+  // URL pública
+  return `${SU}/storage/v1/object/public/${BIB_BUCKET}/${path}`;
+}
+
+window.guardarBibContenido=async function(){
+  const titulo=document.getElementById('bibTitulo').value.trim();
+  const tipo=document.getElementById('bibTipo').value;
+  if(!titulo){toast('Falta el título');return;}
+  const data={
+    titulo,
+    descripcion:document.getElementById('bibDescripcion').value.trim()||null,
+    tipo,
+    categoria_id:parseInt(document.getElementById('bibCategoria').value)||null,
+    sectores:[...document.querySelectorAll('.bib-sec:checked')].map(c=>c.value),
+    cargos:[...document.querySelectorAll('.bib-car:checked')].map(c=>c.value),
+    locales:[...document.querySelectorAll('#bibLocalesCheck input:checked')].map(c=>c.value),
+    destacado:document.getElementById('bibDestacado').checked,
+    actualizado_en:new Date().toISOString(),
+    actualizado_por:CU?.id||null
+  };
+  // Manejo según tipo
+  if(tipo==='link'){
+    const url=document.getElementById('bibUrl').value.trim();
+    if(!url){toast('Falta la URL');return;}
+    data.url=url;data.contenido_texto=null;
+  }else if(tipo==='texto'){
+    const txt=document.getElementById('bibTextoBody').value.trim();
+    if(!txt){toast('Falta el contenido del texto');return;}
+    data.contenido_texto=txt;data.url=null;
+  }else if(tipo==='pdf'){
+    const fileInput=document.getElementById('bibPdfFile');
+    const file=fileInput.files[0];
+    if(file){
+      // Validación tamaño 50 MB
+      if(file.size>50*1024*1024){toast('El PDF no puede superar 50 MB');return;}
+      if(file.type!=='application/pdf'){toast('Solo se permiten PDFs');return;}
+      toast('Subiendo PDF...');
+      const url=await subirPdfStorage(file);
+      if(!url){toast('Error al subir el PDF');return;}
+      data.url=url;
+    }else if(!BIB_EDIT_ID){
+      toast('Subí un archivo PDF');return;
+    }else{
+      // Editar sin reemplazar PDF: no tocar url
+      delete data.url;
+    }
+    data.contenido_texto=null;
+  }
+  if(BIB_EDIT_ID){
+    const r=await api(`biblioteca_contenido?id=eq.${BIB_EDIT_ID}`,'PATCH',data);
+    if(r===null){toast('Error al guardar');return;}
+    toast('✓ Contenido actualizado');
+  }else{
+    data.creado_por=CU?.id||null;
+    data.activo=true;
+    const r=await api('biblioteca_contenido','POST',data);
+    if(!r||!r.length){toast('Error al crear');return;}
+    toast('✓ Contenido creado');
+  }
+  closeOv('ovBibContenido');
+  await loadBibliotecaData();
+  await loadBibVistasConteo();
+  renderBibAdmin();
+};
+
+window.toggleBibContenido=async function(id,activo){
+  const data={activo:!activo,actualizado_en:new Date().toISOString(),actualizado_por:CU?.id||null};
+  const r=await api(`biblioteca_contenido?id=eq.${id}`,'PATCH',data);
+  if(r===null){toast('Error');return;}
+  toast(activo?'Contenido desactivado':'Contenido activado');
+  await loadBibliotecaData();renderBibAdmin();
+};
+
+window.borrarBibContenido=async function(){
+  if(!BIB_EDIT_ID)return;
+  if(!confirm('¿Eliminar este contenido para siempre? Se borrarán también las vistas registradas.'))return;
+  await api(`biblioteca_contenido?id=eq.${BIB_EDIT_ID}`,'DELETE');
+  toast('✓ Contenido eliminado');
+  closeOv('ovBibContenido');
+  await loadBibliotecaData();await loadBibVistasConteo();renderBibAdmin();
+};
+
+// ── BIBLIOTECA: CATEGORÍAS ────────────────────────
+window.openBibCategoriasModal=async function(){
+  await loadBibliotecaData();
+  renderBibCategorias();
+  document.getElementById('bibCatNombre').value='';
+  document.getElementById('bibCatIcono').value='';
+  openOv('ovBibCategorias');
+};
+
+function renderBibCategorias(){
+  const cont=document.getElementById('bibCatList');
+  if(!BIB_CATEGORIAS.length){cont.innerHTML='<div style="text-align:center;color:var(--gray);font-size:13px;padding:14px">Sin categorías. Creá la primera abajo.</div>';return;}
+  cont.innerHTML=BIB_CATEGORIAS.map(c=>{
+    const usos=BIB_CONTENIDO.filter(x=>x.categoria_id===c.id).length;
+    return `<div style="display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--sand-l);border-radius:8px;padding:8px 12px;margin-bottom:6px">
+      <input type="text" value="${esc(c.icono||'📚')}" maxlength="2" id="bcIco_${c.id}" style="width:42px;text-align:center;padding:6px;border:1px solid var(--sand);border-radius:6px;background:var(--cream);font-family:'DM Sans',sans-serif">
+      <input type="text" value="${esc(c.nombre)}" id="bcNom_${c.id}" style="flex:1;padding:6px 10px;border:1px solid var(--sand);border-radius:6px;background:var(--cream);font-family:'DM Sans',sans-serif;font-size:13px">
+      <span style="font-size:10px;color:var(--gray);white-space:nowrap">${usos} item${usos!==1?'s':''}</span>
+      <button class="abtn ao" style="padding:4px 8px;font-size:11px" onclick="guardarBibCategoria(${c.id})">💾</button>
+      <button class="bd" onclick="borrarBibCategoria(${c.id})" title="Eliminar">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+window.crearBibCategoria=async function(){
+  const nombre=document.getElementById('bibCatNombre').value.trim();
+  const icono=document.getElementById('bibCatIcono').value.trim()||'📚';
+  if(!nombre){toast('Falta el nombre');return;}
+  const r=await api('biblioteca_categorias','POST',{nombre,icono,orden:BIB_CATEGORIAS.length+1,creado_por:CU?.id||null});
+  if(!r||!r.length){toast('Error (¿categoría duplicada?)');return;}
+  toast('✓ Categoría creada');
+  document.getElementById('bibCatNombre').value='';
+  document.getElementById('bibCatIcono').value='';
+  await loadBibliotecaData();renderBibCategorias();
+};
+
+window.guardarBibCategoria=async function(id){
+  const nombre=document.getElementById('bcNom_'+id).value.trim();
+  const icono=document.getElementById('bcIco_'+id).value.trim()||'📚';
+  if(!nombre){toast('Falta el nombre');return;}
+  const r=await api(`biblioteca_categorias?id=eq.${id}`,'PATCH',{nombre,icono});
+  if(r===null){toast('Error al guardar');return;}
+  toast('✓ Categoría actualizada');
+  await loadBibliotecaData();renderBibCategorias();
+};
+
+window.borrarBibCategoria=async function(id){
+  const usos=BIB_CONTENIDO.filter(x=>x.categoria_id===id).length;
+  if(usos>0){
+    if(!confirm(`Esta categoría tiene ${usos} contenido(s) asignados. Si la eliminás, esos contenidos quedarán "Sin categoría". ¿Continuar?`))return;
+  }else{
+    if(!confirm('¿Eliminar esta categoría?'))return;
+  }
+  await api(`biblioteca_categorias?id=eq.${id}`,'DELETE');
+  toast('✓ Categoría eliminada');
+  await loadBibliotecaData();renderBibCategorias();
+};
+
+// ── BIBLIOTECA: EDITORES (solo master) ────────────
+async function initBibliotecaEditores(){
+  if(!USUARIOS_R.length)USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  renderBibEditores();
+}
+
+function renderBibEditores(){
+  const tb=document.getElementById('bibEditTbody');
+  const editores=USUARIOS_R.filter(u=>u.editor_biblioteca===true);
+  if(!editores.length){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--gray);padding:24px">Sin editores asignados. Master ya tiene acceso por defecto.</td></tr>';return;}
+  const PFIL={master:'⭐ Master',editor:'✏️ Editor',usuario:'👤 Usuario'};
+  tb.innerHTML=editores.map(u=>`<tr>
+    <td style="font-weight:600">${esc(u.nombre)}</td>
+    <td style="color:var(--gray)">${esc(u.usuario)}</td>
+    <td>${PFIL[u.perfil]||esc(u.perfil)}</td>
+    <td><button class="bd" onclick="quitarBibEditor(${u.id})">Quitar</button></td>
+  </tr>`).join('');
+}
+
+window.openBibEditorModal=function(){
+  // Mostrar usuarios que NO sean ya editores ni master
+  const disponibles=USUARIOS_R.filter(u=>!u.editor_biblioteca&&u.perfil!=='master'&&u.activo);
+  if(!disponibles.length){toast('No hay usuarios disponibles');return;}
+  document.getElementById('bibEdUsuario').innerHTML=disponibles.map(u=>
+    `<option value="${u.id}">${esc(u.nombre)} (${esc(u.usuario)})</option>`).join('');
+  openOv('ovBibEditor');
+};
+
+window.guardarBibEditor=async function(){
+  const id=parseInt(document.getElementById('bibEdUsuario').value);
+  if(!id){toast('Elegí un usuario');return;}
+  const r=await api(`roster_usuarios?id=eq.${id}`,'PATCH',{editor_biblioteca:true});
+  if(r===null){toast('Error');return;}
+  toast('✓ Editor asignado');
+  closeOv('ovBibEditor');
+  USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  renderBibEditores();
+};
+
+window.quitarBibEditor=async function(id){
+  if(!confirm('¿Quitar a este usuario como editor de biblioteca?'))return;
+  await api(`roster_usuarios?id=eq.${id}`,'PATCH',{editor_biblioteca:false});
+  toast('✓ Editor quitado');
+  USUARIOS_R=await api('roster_usuarios?activo=eq.true&order=nombre.asc')||[];
+  renderBibEditores();
 };
 
 // ── INIT ──────────────────────────────────────────
