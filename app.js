@@ -59,6 +59,21 @@ function addDays(s,n){const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);r
 function diasDeSemana(l){return Array.from({length:7},(_,i)=>addDays(l,i));}
 function formatSemana(l){const d=diasDeSemana(l);return `Semana del ${fmt(d[0])} al ${fmt(d[6])}`;}
 
+// Devuelve "Apellido Nombre" del empleado, manejando los campos legacy.
+// Si no hay nombre propio, devuelve sólo el apellido (o el nombre, si es lo único cargado).
+function nombreCompleto(emp){
+  if(!emp)return '';
+  const ap=(emp.apellido||'').trim();
+  let nb=(emp.nombre_p||'').trim();
+  // Caso legacy: `nombre` contiene "Apellido NombreP" → extraer la parte de nombre
+  if(!nb&&emp.nombre&&ap){
+    const resto=emp.nombre.replace(ap,'').trim();
+    if(resto)nb=resto;
+  }
+  if(ap&&nb)return `${ap} ${nb}`;
+  return ap||emp.nombre||'';
+}
+
 // ── PERFIL ───────────────────────────────────────
 function esMaster(){return CU?.perfil==='master';}
 function esDiaPasado(dia,turno){
@@ -125,8 +140,55 @@ async function afterLogin(){
   document.getElementById('dashUser').textContent=`${CU.nombre} · ${perfil}`;
   await loadMisLocalesPropina();
   buildDash();showView('vDash');
+  // Si el usuario debe cambiar su contraseña (primer login o reseteo por master), forzar modal
+  if(CU.debe_cambiar_password){abrirCambioPass(true);}
 }
 function checkSession(){const s=sessionStorage.getItem('az_roster_cu');if(s){CU=JSON.parse(s);afterLogin();}else showView('vLogin');}
+
+// ── CAMBIO DE CONTRASEÑA ─────────────────────────
+// Modo forzado: primer login o reseteo por master. No se puede cerrar hasta cambiarla.
+// Modo voluntario: usuario quiere cambiarla desde su perfil.
+window.abrirCambioPass=function(forzado){
+  PASS_FORZADO=!!forzado;
+  document.getElementById('passActual').value='';
+  document.getElementById('passNueva').value='';
+  document.getElementById('passNuevaRep').value='';
+  document.getElementById('passErr').style.display='none';
+  document.getElementById('ovPassTitle').textContent=forzado?'Tenés que cambiar tu contraseña':'Cambiar mi contraseña';
+  document.getElementById('ovPassMsg').textContent=forzado
+    ? 'Por seguridad, antes de seguir usando la app necesitás definir una contraseña personal. Esta nueva clave sólo la vas a saber vos.'
+    : 'Ingresá tu contraseña actual y elegí una nueva.';
+  // En modo forzado, ocultar las salidas (X y Cancelar)
+  document.getElementById('ovPassClose').style.display=forzado?'none':'';
+  document.getElementById('ovPassCancel').style.display=forzado?'none':'';
+  openOv('ovPass');
+};
+window.guardarPassUsuario=async function(){
+  const actual=document.getElementById('passActual').value;
+  const nueva=document.getElementById('passNueva').value;
+  const rep=document.getElementById('passNuevaRep').value;
+  const err=document.getElementById('passErr');
+  const mostrarErr=t=>{err.textContent=t;err.style.display='block';};
+  if(!actual||!nueva||!rep)return mostrarErr('Completá los tres campos.');
+  if(nueva.length<6)return mostrarErr('La nueva contraseña debe tener al menos 6 caracteres.');
+  if(nueva==='azuca26')return mostrarErr('No podés usar la contraseña por defecto. Elegí una propia.');
+  if(nueva!==rep)return mostrarErr('La nueva contraseña y su confirmación no coinciden.');
+  if(nueva===actual)return mostrarErr('La nueva contraseña tiene que ser distinta de la actual.');
+  // Verificar contraseña actual contra la BD
+  const hActual=await sha256(actual);
+  const check=await api(`roster_usuarios?id=eq.${CU.id}&password_hash=eq.${hActual}&select=id`);
+  if(!check||!check.length)return mostrarErr('La contraseña actual no es correcta.');
+  // Guardar nueva
+  const hNueva=await sha256(nueva);
+  const r=await api(`roster_usuarios?id=eq.${CU.id}`,'PATCH',{password_hash:hNueva,debe_cambiar_password:false});
+  if(r===null)return mostrarErr('No se pudo guardar. Probá de nuevo.');
+  // Actualizar sesión local
+  CU.debe_cambiar_password=false;
+  sessionStorage.setItem('az_roster_cu',JSON.stringify(CU));
+  PASS_FORZADO=false;
+  closeOv('ovPass');
+  toast('✓ Contraseña actualizada');
+};
 
 // ── DASHBOARD ────────────────────────────────────
 function buildDash(){
@@ -213,7 +275,11 @@ document.addEventListener('visibilitychange',()=>{
   }
 });
 function openOv(id){document.getElementById(id).classList.add('open');}
-function closeOv(id){document.getElementById(id).classList.remove('open');}
+function closeOv(id){
+  // No permitir cerrar el cambio de contraseña cuando es forzado
+  if(id==='ovPass'&&PASS_FORZADO)return;
+  document.getElementById(id).classList.remove('open');
+}
 window.closeOv=closeOv;
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
@@ -295,14 +361,14 @@ function renderRosterTable(puedeEditar){
   </tr>`;
   if(!emps.length){document.getElementById('rosterBody').innerHTML=`<tr><td colspan="8" style="text-align:center;color:var(--gray);padding:24px">${SECTOR_ACTUAL?'Sin colaboradores en este sector':'Sin colaboradores para este local'}</td></tr>`;return;}
   document.getElementById('rosterBody').innerHTML=emps.map(emp=>{
-    const esOtroLocal=emp.es_multilocal&&emp.local!==LOCAL_ACTUAL;
     const badge=emp.es_multilocal?` <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600;letter-spacing:.3px;margin-left:4px" title="Multilocal">MULTI</span>`:'';
-    const localOrigen=esOtroLocal?`<div class="sector" style="font-size:10px;color:#5B3A8E">📍 ${esc(LOCAL_LABELS[emp.local]||emp.local)}</div>`:'';
+    // Mostrar siempre el local de origen cuando es multi-local (en cualquier vista del roster)
+    const localOrigen=emp.es_multilocal?`<div class="sector" style="font-size:10px;color:#5B3A8E">📍 ${esc(LOCAL_LABELS[emp.local]||emp.local)}</div>`:'';
     return `
     <tr>
       <td class="emp-cell">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>${esc(emp.apellido||emp.nombre)}${badge}<div class="sector">${esc(emp.sector||'')} · ${esc(emp.categoria||'')}</div>${localOrigen}</div>
+          <div>${esc(nombreCompleto(emp))}${badge}<div class="sector">${esc(emp.sector||'')} · ${esc(emp.categoria||'')}</div>${localOrigen}</div>
           ${puedeEditar?`<button onclick="abrirAplicarTE(${emp.id})" title="Aplicar turno estándar" style="background:none;border:1px solid var(--sand);border-radius:6px;padding:2px 6px;font-size:10px;cursor:pointer;color:var(--gray);white-space:nowrap">📋</button>`:''}
         </div>
       </td>
@@ -347,7 +413,7 @@ window.editTurno=function(empId,dia){
   const t=TURNOS_MAP[`${empId}_${dia}`];
   if(esDiaPasado(dia,t)){toast('Turno cerrado - ya pasó la hora');return;}
   const emp=EMPLEADOS.find(e=>e.id===empId);
-  document.getElementById('turnoTitle').textContent=`${emp?.apellido||emp?.nombre||''} — ${fmt(dia)}`;
+  document.getElementById('turnoTitle').textContent=`${nombreCompleto(emp)} — ${fmt(dia)}`;
   document.getElementById('turnoEmpId').value=empId;
   document.getElementById('turnoDia').value=dia;
   const he=t?.hora_entrada?.slice(0,5)||'';
@@ -389,7 +455,7 @@ window.guardarTurno=async function(){
   const data={semana_id:SEMANA_ID,empleado_id:empId,dia,es_off:esOff,es_flex:esFlex,hora_entrada:esOff?null:hora,comentario:comment||null};
   // Capturar estado previo para el log
   const emp=EMPLEADOS.find(e=>e.id===empId);
-  const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+  const empNombre=nombreCompleto(emp);
   const previo=existing?{hora_entrada:existing.hora_entrada,es_off:existing.es_off,es_flex:existing.es_flex,comentario:existing.comentario}:null;
   if(existing){await api(`roster_turnos?id=eq.${existing.id}`,'PATCH',data);TURNOS_MAP[key]={...existing,...data};}
   else{const r=await api('roster_turnos','POST',data);if(r&&r.length)TURNOS_MAP[key]=r[0];}
@@ -410,7 +476,7 @@ window.borrarTurno=async function(){
     delete TURNOS_MAP[key];
     // Log de historial
     const emp=EMPLEADOS.find(e=>e.id===empId);
-    const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+    const empNombre=nombreCompleto(emp);
     logHistorial('turno_borrado',{
       empleado_id:empId,empleado_nombre:empNombre,dia,
       detalle:{previo:{hora_entrada:existing.hora_entrada,es_off:existing.es_off,es_flex:existing.es_flex,comentario:existing.comentario}}
@@ -502,7 +568,7 @@ window.guardarIncidencia=async function(){
 window.loadIncidencias=async function(){
   const local=document.getElementById('incFiltLocal').value;
   const estado=document.getElementById('incFiltEstado').value;
-  let q='incidencias?select=*,empleado:empleado_id(nombre,apellido,local,sector)&order=creado_en.desc&limit=100';
+  let q='incidencias?select=*,empleado:empleado_id(nombre,nombre_p,apellido,local,sector)&order=creado_en.desc&limit=100';
   if(estado==='pendiente')q+=`&estado=eq.pendiente`;
   else if(estado==='procesada')q+=`&estado=in.(aprobado,rechazado)`;
   const data=await api(q)||[];
@@ -516,7 +582,7 @@ window.loadIncidencias=async function(){
   list.innerHTML=filtered.map(i=>`
     <div class="inc-card">
       <div class="inc-info">
-        <div class="nombre">${esc(i.empleado?.apellido||i.empleado?.nombre||'—')}</div>
+        <div class="nombre">${esc(nombreCompleto(i.empleado)||'—')}</div>
         <div class="meta">${esc(LOCAL_LABELS[i.empleado?.local]||'—')} · ${esc(i.empleado?.sector||'')} · ${fmt(i.fecha)}</div>
         <div style="margin-top:4px"><span class="badge ${i.estado==='pendiente'?'b-pendiente':'b-procesada'}">${TIPOS[i.tipo]||esc(i.tipo)}</span></div>
         ${i.descripcion?`<div class="desc" style="margin-top:4px;font-size:12px">${esc(i.descripcion)}</div>`:''}
@@ -550,7 +616,7 @@ window.verIncidencia=async function(id){
   const emp=EMPLEADOS.find(e=>e.id===inc.empleado_id);
   const TIPOS={tardanza:'⏰ Llegada tarde',ausencia:'❌ Ausencia',enfermedad:'🤒 Enfermedad',cambio_turno:'🔄 Cambio de turno',otro:'📝 Otro'};
   const ESTADOS={pendiente:'⏳ Pendiente',aprobado:'✓ Procesada · Aceptada',rechazado:'✓ Procesada · Denegada'};
-  document.getElementById('incDetTitle').textContent=`Incidencia — ${emp?.apellido||emp?.nombre||''}`;
+  document.getElementById('incDetTitle').textContent=`Incidencia — ${nombreCompleto(emp)}`;
   // Si tiene revisor, traerlo
   let revisorNombre='';
   if(inc.revisado_por){
@@ -752,8 +818,8 @@ window.guardarEmpleado=async function(){
         userFinal=baseUser+i;
       }
       const h=await sha256('azuca26');
-      const r=await api('roster_usuarios','POST',{usuario:userFinal,password_hash:h,nombre,perfil:'usuario',empleado_id:empId,activo:true});
-      if(r&&r.length){toast(`✓ Usuario creado: ${userFinal} / azuca26`,5000);}
+      const r=await api('roster_usuarios','POST',{usuario:userFinal,password_hash:h,nombre,perfil:'usuario',empleado_id:empId,activo:true,debe_cambiar_password:true});
+      if(r&&r.length){toast(`✓ Usuario creado: ${userFinal} / azuca26 (deberá cambiarla al ingresar)`,5000);}
       else{toast('Colaborador guardado pero falló la creación del usuario',4000);}
     }
   }
@@ -775,7 +841,7 @@ async function loadUsuarios(){
   const sel=document.getElementById('uEmpleadoId');
   const cur=sel.value;
   sel.innerHTML='<option value="">Sin vincular</option>'+
-    EMPLEADOS.map(e=>`<option value="${e.id}" ${String(e.id)===cur?'selected':''}>${e.apellido||e.nombre}${e.nombre_p?' '+e.nombre_p:''}</option>`).join('');
+    EMPLEADOS.map(e=>`<option value="${e.id}" ${String(e.id)===cur?'selected':''}>${esc(nombreCompleto(e))}</option>`).join('');
 }
 function renderUsuarios(){
   const tb=document.getElementById('userTbody');
@@ -831,7 +897,11 @@ window.guardarUsuario=async function(){
   if(!nombre||!usuario){toast('Completá nombre y usuario');return;}
   const locales=[...document.querySelectorAll('.locales-check input:checked')].map(cb=>cb.value);
   const data={nombre,usuario,perfil,locales_editor:locales.length?locales:null,empleado_id:empId?parseInt(empId):null,activo:true};
-  if(pass){data.password_hash=await sha256(pass);}
+  // Si el master define o cambia la contraseña, marcar que el usuario debe cambiarla al ingresar
+  if(pass){
+    data.password_hash=await sha256(pass);
+    data.debe_cambiar_password=true;
+  }
   if(eUserId){
     await api(`roster_usuarios?id=eq.${eUserId}`,'PATCH',data);
     toast('✓ Usuario actualizado');
@@ -988,7 +1058,7 @@ window.borrarTurnoEst=async function(){
 window.abrirAplicarTE=async function(empId){
   teEmpId=empId;
   const emp=EMPLEADOS.find(e=>e.id===empId);
-  document.getElementById('aplicarTETitle').textContent=`Turno para ${emp?.apellido||emp?.nombre||''}`;
+  document.getElementById('aplicarTETitle').textContent=`Turno para ${nombreCompleto(emp)}`;
   // Load if needed
   if(!TURNOS_EST.length)await loadTurnosEst();
   // Filter by local or TODOS
@@ -1075,7 +1145,7 @@ window.aplicarTurnoEst=async function(){
   renderRosterTable(true);
   // Log de historial - una entrada por aplicación de plantilla
   const emp=EMPLEADOS.find(e=>e.id===empId);
-  const empNombre=`${emp?.apellido||''} ${emp?.nombre_p||''}`.trim()||emp?.nombre||'';
+  const empNombre=nombreCompleto(emp);
   logHistorial('turno_estandar_aplicado',{
     empleado_id:empId,empleado_nombre:empNombre,dia:SEMANA_ACTUAL,
     detalle:{plantilla:t.nombre,plantilla_id:t.id}
@@ -1243,11 +1313,9 @@ window.cargarResumenPropinas=async function(){
   const tb=document.getElementById('prTbody');
   if(!filas.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray);padding:24px">Sin asignaciones en este período</td></tr>';return;}
   tb.innerHTML=filas.map(f=>{
-    const apellido=f.emp?.apellido||f.emp?.nombre||'—';
-    const nombrep=f.emp?.nombre_p||'';
     const multi=f.emp?.es_multilocal?' <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600">MULTI</span>':'';
     return `<tr>
-      <td style="font-weight:600">${esc(apellido)}${nombrep?' '+esc(nombrep):''}${multi}</td>
+      <td style="font-weight:600">${esc(nombreCompleto(f.emp)||'—')}${multi}</td>
       <td style="font-size:12px">${esc(LOCAL_LABELS[f.emp?.local]||f.emp?.local||'—')}</td>
       <td style="text-align:center">${f.cierres}</td>
       <td style="text-align:center">${f.puntos}</td>
@@ -1349,8 +1417,8 @@ async function loadMiPropina(){
       });
     });
     Object.values(porLocal).forEach(l=>l.dias.sort((a,b)=>b.fecha.localeCompare(a.fecha)));
-    const turnoIcon={mediodia:'🌤',noche:'🌙'};
-    const turnoLbl={mediodia:'Mediodía',noche:'Noche'};
+    const turnoIcon={mediodia:'🌤',noche:'🌙',evento:'🎉',especial:'⭐'};
+    const turnoLbl={mediodia:'Mediodía',noche:'Noche',evento:'Evento',especial:'Especial'};
     html+=`<div style="margin-bottom:10px;font-size:13px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:1px">Detalle de pendientes</div>`;
     Object.entries(porLocal).forEach(([loc,data])=>{
       html+=`<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:12px;padding:16px;margin-bottom:12px">
@@ -1376,7 +1444,7 @@ async function loadMiPropina(){
 window.loadMiPropina=loadMiPropina;
 
 // ── PROPINAS: LISTA + FORMULARIO ──────────────────
-const PROP_DENOMINACIONES=[20000,10000,5000,2000,1000];
+const PROP_DENOMINACIONES=[20000,10000,2000,1000,500,200,100];
 const PROP_MONEDAS=[{c:'usd',l:'USD'},{c:'eur',l:'EUR'},{c:'brl',l:'BRL'}];
 let PROP_LOCAL_ACTUAL=null;
 let PROP_CIERRES=[];
@@ -1455,7 +1523,8 @@ function renderCierres(){
   if(!PROP_CIERRES.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--gray);padding:24px">Sin cierres todavía. Apretá "+ Nuevo cierre" para empezar.</td></tr>';actualizarBarraSeleccion();return;}
   tb.innerHTML=PROP_CIERRES.map(c=>{
     const usr=USUARIOS_R.find(u=>u.id===c.creado_por);
-    const turnoTxt=c.turno==='mediodia'?'🌤 Mediodía':'🌙 Noche';
+    const turnoTxtMap={mediodia:'🌤 Mediodía',noche:'🌙 Noche',evento:'🎉 Evento',especial:'⭐ Especial'};
+    const turnoTxt=turnoTxtMap[c.turno]||c.turno;
     const estadoBadge=c.pagado?'<span class="badge b-aprobado">✓ Pagado</span>':'<span class="badge b-procesada">Cerrado</span>';
     const puedeEditar=esMaster();
     // Acciones: editar solo si master Y no está pagado. Sino, solo ver.
@@ -1540,10 +1609,12 @@ window.abrirNuevoCierre=async function(){
   document.getElementById('pfFecha').value=hoyStr();
   document.getElementById('pfFecha').max=hoyStr(); // no permitir fechas futuras
   document.getElementById('pfTurno').value='mediodia';
+  document.getElementById('pfComentario').value='';
   // Renderizar billetes y monedas
   buildBilletesForm({});
   buildExtranjeraForm({});
   document.getElementById('pfTarjeta').value='';
+  document.getElementById('pfTransferencia').value='';
   document.getElementById('pfPorcAdminLbl').textContent=PROP_CONFIG_CACHE?.porcentaje_admin||10;
   renderColaboradoresPunto();
   recalcularPropina();
@@ -1565,9 +1636,12 @@ window.abrirCierre=async function(id){
   document.getElementById('pfFecha').disabled=soloLectura;
   document.getElementById('pfTurno').value=c.turno;
   document.getElementById('pfTurno').disabled=soloLectura;
+  document.getElementById('pfComentario').value=c.comentario||'';
+  document.getElementById('pfComentario').disabled=soloLectura;
   buildBilletesForm(c);
   buildExtranjeraForm(c);
   document.getElementById('pfTarjeta').value=c.monto_tarjeta||0;
+  document.getElementById('pfTransferencia').value=c.monto_transferencia||0;
   document.getElementById('pfPorcAdminLbl').textContent=c.porcentaje_admin||10;
   // Cargar asignaciones existentes
   const asigs=await api(`propinas_asignaciones?cierre_id=eq.${id}&select=*`)||[];
@@ -1635,11 +1709,9 @@ window.renderColaboradoresPunto=function(){
   if(!colabs.length){tb.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--gray);padding:16px">Sin colaboradores</td></tr>';recalcularPropina();return;}
   tb.innerHTML=colabs.map(e=>{
     const puntos=PROP_COLABS_PUNTOS[e.id]??0;
-    const apellido=e.apellido||e.nombre||'';
-    const nombrep=e.nombre_p||'';
     const multi=e.es_multilocal&&e.local!==localSel?` <span style="font-size:9px;background:#EDE3F7;color:#5B3A8E;padding:1px 5px;border-radius:8px;font-weight:600">${esc(LOCAL_LABELS[e.local]||e.local)}</span>`:'';
     return `<tr>
-      <td style="font-weight:600">${esc(apellido)}${nombrep?' '+esc(nombrep):''}${multi}<div style="font-size:11px;color:var(--gray);font-weight:400">${esc(e.sector||'')} · ${esc(e.categoria||'')}</div></td>
+      <td style="font-weight:600">${esc(nombreCompleto(e))}${multi}<div style="font-size:11px;color:var(--gray);font-weight:400">${esc(e.sector||'')} · ${esc(e.categoria||'')}</div></td>
       <td style="text-align:center">
         <div style="display:inline-flex;gap:4px">
           <button onclick="setPuntos(${e.id},0)" class="pt-btn ${puntos===0?'active':''}" data-pt="0">0</button>
@@ -1693,10 +1765,11 @@ window.recalcularPropina=function(){
     if(el)el.textContent='$'+formatNumber(subt);
   });
   document.getElementById('pfSubExt').textContent='$'+formatNumber(totalExt);
-  // Tarjeta
+  // Tarjeta + Transferencia
   const tarjeta=parseFloat(document.getElementById('pfTarjeta')?.value)||0;
+  const transferencia=parseFloat(document.getElementById('pfTransferencia')?.value)||0;
   // Bruto
-  const bruto=totalPesos+totalExt+tarjeta;
+  const bruto=totalPesos+totalExt+tarjeta+transferencia;
   const porcAdmin=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT.porcentaje_admin||10):(PROP_CONFIG_CACHE?.porcentaje_admin||10);
   const descAdmin=bruto*(porcAdmin/100);
   const neto=bruto-descAdmin;
@@ -1721,6 +1794,7 @@ window.guardarCierrePropina=async function(){
   const local=document.getElementById('pfLocal').value;
   const fecha=document.getElementById('pfFecha').value;
   const turno=document.getElementById('pfTurno').value;
+  const comentario=document.getElementById('pfComentario').value.trim();
   if(!fecha){toast('Elegí una fecha');return;}
   if(fecha>hoyStr()){toast('No se pueden cargar fechas futuras');return;}
   if(!puedeEditarPropinaLocal(local)){toast('Sin permiso para este local');return;}
@@ -1734,19 +1808,21 @@ window.guardarCierrePropina=async function(){
     }
   }
   // Armar payload
-  const datos={local,fecha,turno};
+  const datos={local,fecha,turno,comentario};
   PROP_DENOMINACIONES.forEach(d=>{datos[`bil_${d}`]=parseInt(document.getElementById(`pfBil_${d}`).value)||0;});
   PROP_MONEDAS.forEach(m=>{
     datos[`monto_${m.c}`]=parseFloat(document.getElementById(`pfMon_${m.c}`).value)||0;
     datos[`tc_${m.c}`]=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT[`tc_${m.c}`]||0):(PROP_CONFIG_CACHE?.[`cambio_${m.c}`]||0);
   });
   datos.monto_tarjeta=parseFloat(document.getElementById('pfTarjeta').value)||0;
+  datos.monto_transferencia=parseFloat(document.getElementById('pfTransferencia').value)||0;
   datos.porcentaje_admin=PROP_CIERRE_EDIT?(PROP_CIERRE_EDIT.porcentaje_admin||10):(PROP_CONFIG_CACHE?.porcentaje_admin||10);
   // Calcular totales
   let bruto=0;
   PROP_DENOMINACIONES.forEach(d=>{bruto+=datos[`bil_${d}`]*d;});
   PROP_MONEDAS.forEach(m=>{bruto+=datos[`monto_${m.c}`]*datos[`tc_${m.c}`];});
   bruto+=datos.monto_tarjeta;
+  bruto+=datos.monto_transferencia;
   const descAdmin=bruto*(datos.porcentaje_admin/100);
   const neto=bruto-descAdmin;
   const totalPuntos=Object.values(PROP_COLABS_PUNTOS).reduce((a,b)=>a+b,0);
@@ -2153,7 +2229,7 @@ window.verVistas=async function(id){
       const cuando=dt.toLocaleDateString('es-AR')+' '+dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
       return `<div style="background:var(--white);border:1px solid var(--sand-l);border-radius:8px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-weight:600;font-size:13px">${esc(emp?`${emp.apellido||''} ${emp.nombre||''}`.trim():'(colaborador eliminado)')}</div>
+          <div style="font-weight:600;font-size:13px">${esc(emp?nombreCompleto(emp):'(colaborador eliminado)')}</div>
           <div style="font-size:11px;color:var(--gray)">${esc(emp?.local||'')} · ${esc(emp?.sector||'')}</div>
         </div>
         <div style="font-size:11px;color:var(--gray)">${cuando}</div>
